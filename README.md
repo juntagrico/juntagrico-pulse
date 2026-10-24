@@ -22,13 +22,26 @@ Install juntagrico-pulse via pip
 or add it to your main django projects `requirements.txt`:
 `juntagrico-pulse`
 
-In your `juntagrico.settings.py` add `juntagrico_pulse` somewhere **above** `juntagrico`:
+In your `settings.py`:
+
+add `juntagrico_pulse` somewhere **above** `juntagrico` in `INSTALLED_APPS`:
 ```python
 INSTALLED_APPS = (
     'juntagrico_pulse',
     'juntagrico',
     ...
 ```
+
+
+And add this middleware after the `AuthenticationMiddleware`:
+```python
+INSTALLED_APPS = (
+    ...
+    'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'juntagrico_pulse.middleware.RequireSurveyCompletionMiddleware',
+    ...
+```
+
 
 In your urls.py you also need to add the new pattern:
 ```python

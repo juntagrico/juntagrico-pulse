@@ -1,0 +1,14 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block page_title %}
+    <h3>
+        Umfrage starten
+    </h3>
+{% endblock %}
+
+{% block content %}
+    <p>Dies erstellt einen Entwurf. Im Anschluss kannst du bestätigen, wer an dieser Umfrage teilnehmen muss.</p>
+
+    {% crispy form %}
+{% endblock %}

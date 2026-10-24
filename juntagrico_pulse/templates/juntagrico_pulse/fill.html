@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% load crispy_forms_tags %}
+
+{% block page_title %}
+    <h3>
+        Umfrage {{ survey.year }}
+    </h3>
+{% endblock %}
+
+{% block content %}
+    <div class="container py-4">
+        {% if already_submitted %}
+            <div class="alert alert-info" role="status">
+                Du hast bereits eine Antwort eingereicht. Hier kannst du sie bearbeiten.
+            </div>
+        {% endif %}
+
+        {% crispy form %}
+    </div>
+{% endblock %}
