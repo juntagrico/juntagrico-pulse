@@ -1,0 +1,91 @@
+name: juntagrico-ci
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main, 'releases/**' ]
+
+jobs:
+  check-dependencies:
+    name: Dependency Check
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+
+      - name: Install deptry
+        run: |
+          pip install --upgrade -r requirements.txt
+          pip install deptry
+
+      - name: Run deptry
+        run: deptry . --github-output
+
+  tests:
+    name: Tests
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      DJANGO_SETTINGS_MODULE: settings.dev
+      PYTHONPATH: .
+      COVERAGE_FILE: coverage
+    strategy:
+      matrix:
+        include:
+          - python-version: '3.10'
+          - python-version: '3.11'
+          - python-version: '3.12'
+          - python-version: '3.13'
+          - python-version: '3.14'
+
+    steps:
+    - uses: actions/checkout@v6
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v7
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: install dependencies
+      run: pip install --upgrade -r requirements.txt
+    - name: ruff
+      run: ruff check --preview juntagrico_pulse
+    - name: make migrations
+      run: python -m django makemigrations --noinput
+    - name: run tests
+      run: python -m manage test
+      if: ${{ matrix.python-version  != '3.11' }}
+    - name: run tests with coverage
+      run: coverage run -m manage test
+      if: ${{ matrix.python-version  == '3.11' }}
+    - run: coverage lcov -o coverage.lcov
+      if: ${{ matrix.python-version  == '3.11' }}
+    - uses: actions/upload-artifact@v4
+      if: ${{ matrix.python-version  == '3.11' }}
+      with:
+        name: coverage
+        path: coverage.lcov
+
+  coverage:
+    name: Coverage Report
+    needs: tests
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/download-artifact@v6
+        with:
+          path: coverage
+          merge-multiple: true
+      - uses: qltysh/qlty-action/coverage@v2
+        with:
+          token: ${{ secrets.QLTY_COVERAGE_TOKEN }}
+          files: coverage/coverage*.lcov

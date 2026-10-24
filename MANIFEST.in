@@ -1,0 +1,9 @@
+include LICENSE
+include README.md
+recursive-include juntagrico_pulse/templates *
+recursive-include juntagrico_pulse/locale *
+recursive-include juntagrico_pulse/fixtures *
+include requirements.txt
+global-exclude *.pyc
+exclude manage.py
+recursive-exclude dev *

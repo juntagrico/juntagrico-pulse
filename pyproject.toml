@@ -1,0 +1,55 @@
+[project]
+name = "juntagrico-pulse"
+description = "Poll participants for reporting purposes"
+authors = [
+    {name = "David Glenck", email = "admin@juntagrico.org"},
+]
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.10"
+dependencies = [
+    "juntagrico>=2.0.0",
+]
+classifiers = [
+    'Development Status :: 5 - Production/Stable',
+    'Environment :: Web Environment',
+    'Framework :: Django',
+    'Framework :: Django :: 5.2',
+    'Intended Audience :: Developers',
+    'Intended Audience :: Other Audience',
+    'License :: OSI Approved :: GNU Lesser General Public License v3 (LGPLv3)',
+    'Operating System :: OS Independent',
+    'Programming Language :: Python',
+    'Programming Language :: Python :: 3.10',
+    'Programming Language :: Python :: 3.11',
+    'Programming Language :: Python :: 3.12',
+    'Programming Language :: Python :: 3.13',
+    'Programming Language :: Python :: 3.14',
+    'Topic :: Internet :: WWW/HTTP :: Site Management',
+]
+dynamic = ["version"]
+
+[project.urls]
+Homepage = "https://www.juntagrico.org"
+Issues = "https://github.com/juntagrico/juntagrico-pulse/issues"
+
+[tool.setuptools.packages.find]
+include = ["juntagrico_pulse*"]
+
+[tool.setuptools.dynamic]
+version = {attr = "juntagrico_pulse.__version__"}
+
+[tool.ruff.lint]
+select = ["E", "F", "B"]
+ignore = ["E501"]
+
+[tool.ruff.format]
+quote-style = "single"
+
+[tool.coverage.run]
+plugins = ["django_coverage_plugin"]
+include = ["juntagrico_pulse/*"]
+omit = ["juntagrico_pulse/migrations/*"]
+
+[tool.deptry.per_rule_ignores]
+DEP003 = ["django"]
