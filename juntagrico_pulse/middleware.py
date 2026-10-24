@@ -3,7 +3,7 @@ from urllib.parse import urlencode
 from django.shortcuts import redirect
 from django.urls import reverse, resolve, Resolver404
 
-from .models import SurveyResult
+from .models import SurveyResult, Survey
 
 
 class RequireSurveyCompletionMiddleware:
@@ -13,8 +13,8 @@ class RequireSurveyCompletionMiddleware:
     """
 
     EXEMPT = (
-        "fill",
-        "logout",
+        'fill',
+        'logout',
     )
 
     def __init__(self, get_response):
@@ -34,20 +34,19 @@ class RequireSurveyCompletionMiddleware:
             pass
 
         pending_survey_id = (
-            SurveyResult.objects
-            .filter(
-                survey__status="published",
+            SurveyResult.objects.filter(
+                survey__status=Survey.Status.PUBLISHED,
                 member_links__member=user.member,
                 submitted_at__isnull=True,
             )
-            .order_by("survey__year")
-            .values_list("survey_id", flat=True)
+            .order_by('survey__year')
+            .values_list('survey_id', flat=True)
             .first()
         )
 
         if pending_survey_id is not None:
-            url = reverse("juntagrico-pulse:fill", args=[pending_survey_id])
-            query = urlencode({"next": request.get_full_path()})
-            return redirect(f"{url}?{query}")
+            url = reverse('juntagrico-pulse:fill', args=[pending_survey_id])
+            query = urlencode({'next': request.get_full_path()})
+            return redirect(f'{url}?{query}')
 
         return self.get_response(request)

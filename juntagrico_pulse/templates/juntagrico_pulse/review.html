@@ -7,6 +7,18 @@
 {% endblock %}
 
 {% block content %}
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <a href="{% url 'juntagrico-pulse:overview' %}" class="btn btn-secondary" role="button">
+            Zurück zur Übersicht
+        </a>
+        <form method="post" action="{% url 'juntagrico-pulse:publish' survey.id %}">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-primary">
+                Umfrage veröffentlichen
+            </button>
+        </form>
+    </div>
+
     <p>Überprüfe die ausgewählten {{ vocabulary.member_pl }} vor der Veröffentlichung.</p>
 
     {% if error %}
@@ -55,11 +67,4 @@
             </tbody>
         </table>
     </div>
-
-    <form method="post" action="{% url 'juntagrico-pulse:publish' survey.id %}">
-        {% csrf_token %}
-        <button type="submit" class="btn btn-primary">
-            Umfrage veröffentlichen
-        </button>
-    </form>
 {% endblock %}

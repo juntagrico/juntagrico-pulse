@@ -2,7 +2,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
-from django.db.models import Count
+from django.db.models import Avg, Count, Sum, Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
@@ -204,3 +204,88 @@ def fill_survey(request, survey_id):
             'already_submitted': result.submitted_at is not None,
         },
     )
+
+
+@login_required
+def survey_results(request, survey_id):
+    survey = get_object_or_404(
+        Survey,
+        pk=survey_id,
+    )
+
+    results = SurveyResult.objects.filter(survey=survey)
+    completed = results.filter(submitted_at__isnull=False)
+
+    stats = results.aggregate(
+        total=Count("pk"),
+        completed_subscriptions=Count(
+            "pk",
+            filter=Q(
+                subscription__isnull=False,
+                submitted_at__isnull=False,
+            ),
+        ),
+        pending_subscriptions=Count(
+            "pk",
+            filter=Q(
+                subscription__isnull=False,
+                submitted_at__isnull=True,
+            ),
+        ),
+        completed_members=Count(
+            "pk",
+            filter=Q(
+                subscription__isnull=True,
+                submitted_at__isnull=False,
+            ),
+        ),
+        pending_members=Count(
+            "pk",
+            filter=Q(
+                subscription__isnull=True,
+                submitted_at__isnull=True,
+            ),
+        ),
+    )
+
+    answer_summary = completed.aggregate(
+        participation_level_sum=Sum("participation_level"),
+        participation_level_average=Avg("participation_level"),
+    )
+
+    counts = {
+        row['participation_level']: row['count']
+        for row in results.exclude(participation_level=None)
+        .values('participation_level')
+        .annotate(count=Count('id'))
+    }
+
+    distribution = [
+        {
+            'participation_level': value,
+            'count': counts.get(value, 0),
+        }
+        for value in range(max(counts) + 1)
+    ]
+
+    return render(request, "juntagrico_pulse/results.html", {
+        "survey": survey,
+        "stats": stats,
+        "answer_summary": answer_summary,
+        "distribution": distribution,
+    })
+
+
+@login_required
+@require_POST
+def close_survey(request, survey_id):
+    with transaction.atomic():
+        survey = get_object_or_404(
+            Survey.objects.select_for_update(),
+            pk=survey_id,
+            status=Survey.Status.PUBLISHED,
+        )
+        survey.status = Survey.Status.CLOSED
+        survey.save(update_fields=["status"])
+
+    return redirect("juntagrico-pulse:results", survey_id=survey.pk)

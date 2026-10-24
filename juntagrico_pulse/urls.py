@@ -15,4 +15,6 @@ urlpatterns = [
     ),
     path('<int:survey_id>/publish/', views.publish_survey, name='publish'),
     path('<int:survey_id>/fill/', views.fill_survey, name='fill'),
+    path("<int:survey_id>/results/", views.survey_results, name="results"),
+    path("<int:survey_id>/close/", views.close_survey, name="close"),
 ]

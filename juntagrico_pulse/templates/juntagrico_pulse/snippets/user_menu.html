@@ -1,0 +1,8 @@
+{% load juntagrico.common %}
+{% for survey_result in survey_results %}
+    <li class="nav-item">
+        <a class="nav-link {{ request|activemenu:"pulse" }}" href="{% url 'juntagrico-pulse:fill' survey_result.survey_id %}">
+            {{ survey_result.survey }}
+        </a>
+    </li>
+{% endfor %}

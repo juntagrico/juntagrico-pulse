@@ -1,0 +1,13 @@
+{% extends "juntagrico/menu/admin.html" %}
+{% load i18n %}
+{% load juntagrico.config %}
+{% block extend %}
+    {% if perms.juntagrico_pulse.view_survey %}
+        <li class="nav-item">
+            <a class="nav-link" href="{% url 'juntagrico-pulse:overview' %}">
+                Umfragen
+            </a>
+        </li>
+    {% endif %}
+    {{ block.super }}
+{% endblock %}

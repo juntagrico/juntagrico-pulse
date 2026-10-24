@@ -52,9 +52,9 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'impersonate.middleware.ImpersonateMiddleware',
     'juntagrico_pulse.middleware.RequireSurveyCompletionMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
-    'impersonate.middleware.ImpersonateMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 

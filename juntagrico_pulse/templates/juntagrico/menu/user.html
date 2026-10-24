@@ -1,0 +1,7 @@
+{% extends "juntagrico/menu/user.html" %}
+{% load juntagrico_pulse.menu %}
+
+{% block extend %}
+    {% show_pulse_menu request %}
+    {{ block.super }}
+{% endblock %}

@@ -34,7 +34,12 @@
                     <td>{{ survey.selected_member_count }}</td>
                     <td>{{ survey.created_at|date:"d.m.Y" }}</td>
                     <td>
-                        {% if survey.status == "draft" %}
+                        {% if survey.status == "published" %}
+                            <a href="{% url 'juntagrico-pulse:results' survey.id %}"
+                               class="btn btn-sm btn-outline-primary">
+                                Resultate
+                            </a>
+                        {% elif survey.status == "draft" %}
                             <a href="{% url 'juntagrico-pulse:review' survey.id %}"
                                class="btn btn-sm btn-outline-primary">
                                 Überprüfen
