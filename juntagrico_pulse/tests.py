@@ -37,9 +37,12 @@ class JuntagricoPulseTest(JuntagricoTestCase):
 
     def test_publish_empty_survey(self):
         survey = Survey.objects.create(year=2026, status=Survey.Status.DRAFT)
-        self.assertPost(
+        result = self.assertPost(
             reverse('juntagrico-pulse:publish', kwargs={'survey_id': survey.pk}),
-            code=400,
+            code=302,
+        )
+        self.assertRedirects(
+            result, reverse('juntagrico-pulse:review', kwargs={'survey_id': survey.pk})
         )
 
     def test_edit_non_draft_survey_permission_denied(self):

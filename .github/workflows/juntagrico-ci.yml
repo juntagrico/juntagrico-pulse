@@ -34,7 +34,7 @@ jobs:
     permissions:
       contents: read
     env:
-      DJANGO_SETTINGS_MODULE: settings.dev
+      DJANGO_SETTINGS_MODULE: dev.settings
       PYTHONPATH: .
       COVERAGE_FILE: coverage
     strategy:
