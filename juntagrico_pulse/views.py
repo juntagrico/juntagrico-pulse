@@ -302,6 +302,21 @@ def survey_results(request, survey_id):
 
 
 @login_required
+def survey_individual_results(request, survey_id):
+    survey = get_object_or_404(
+        Survey,
+        pk=survey_id,
+    )
+
+    results = SurveyResult.objects.filter(survey=survey)
+
+    return render(request, "juntagrico_pulse/individual_results.html", {
+        "survey": survey,
+        "results": results,
+    })
+
+
+@login_required
 @require_POST
 def close_survey(request, survey_id):
     with transaction.atomic():

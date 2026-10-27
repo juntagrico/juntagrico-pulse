@@ -31,8 +31,8 @@
         {% endif %}
     </div>
 
-    <h2 class="h4">Aktive Mitarbeit</h2>
-    <div class="table-responsive mb-4">
+    <h2 class="h4">Status</h2>
+    <div class="table-responsive mb-1">
         <table class="table table-bordered">
             <thead class="thead-light">
             <tr>
@@ -58,6 +58,11 @@
             </tr>
             </tbody>
         </table>
+    </div>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <a href="{% url 'juntagrico-pulse:results-individual' survey.id %}" class="btn btn-secondary" role="button">
+            Einzelne Resultate ansehen
+        </a>
     </div>
 
     <h2 class="h4">Zusammenfassung</h2>
