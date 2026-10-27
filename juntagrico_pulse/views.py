@@ -3,6 +3,7 @@ from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
 from django.db.models import Avg, Count, Sum, Q
+from django.http.response import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
@@ -104,12 +105,36 @@ def review_survey(request, survey_id):
         .order_by('subscription_id', 'id')
     )
 
+    excluded = Member.objects.active().exclude(covered_survey_results__survey=survey)
+
     return render(
         request,
         'juntagrico_pulse/review.html',
-        {'survey': survey, 'results': results},
+        {'survey': survey, 'results': results, 'excluded': excluded},
     )
 
+
+@login_required
+@require_POST
+def add_survey_member(request, survey_id, member_id):
+    survey = get_draft(survey_id)
+
+    with transaction.atomic():
+        member = get_object_or_404(
+            Member.objects.select_for_update(),
+            pk=member_id,
+        )
+        if member.inactive:
+            raise Http404()
+
+        current_subscription = member.subscription_current
+        if current_subscription is not None:
+            result, _ = SurveyResult.objects.get_or_create(survey=survey, subscription=member.subscription_current)
+        else:
+            result = SurveyResult.objects.create(survey=survey)
+        SurveyResultMember.objects.update_or_create(result=result, member=member)
+
+    return redirect('juntagrico-pulse:review', survey_id=survey.pk)
 
 @login_required
 @require_POST
