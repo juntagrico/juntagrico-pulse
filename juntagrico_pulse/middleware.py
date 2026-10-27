@@ -15,6 +15,8 @@ class RequireSurveyCompletionMiddleware:
     EXEMPT = (
         'fill',
         'logout',
+        'impersonate-stop',
+        'js-i18n',
     )
 
     def __init__(self, get_response):

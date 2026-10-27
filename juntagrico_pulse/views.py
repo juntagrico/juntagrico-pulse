@@ -216,7 +216,7 @@ def fill_survey(request, survey_id):
                 ):
                     return redirect(next_url)
 
-                return redirect('juntagrico-pulse:fill', survey_id=survey_id)
+                return redirect('home')
     else:
         form = SurveyResponseForm(instance=result, next_url=next_url)
 
@@ -225,6 +225,7 @@ def fill_survey(request, survey_id):
         'juntagrico_pulse/fill.html',
         {
             'survey': result.survey,
+            'result': result,
             'form': form,
             'already_submitted': result.submitted_at is not None,
         },
