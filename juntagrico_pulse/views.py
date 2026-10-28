@@ -1,3 +1,5 @@
+import datetime
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
@@ -47,35 +49,41 @@ def start_survey(request):
                 status=Survey.Status.DRAFT,
             )
 
-            # TODO: should future subscriptions be included somehow?
+            # collect all active subscriptions first
             for subscription in (
                 Subscription.objects.active()
                 .prefetch_related('members')
                 .iterator(chunk_size=100)
             ):
-                members = subscription.current_members
-                if not members:
-                    continue
-
-                result = SurveyResult.objects.create(
+                SurveyResult.objects.create_with_members(
                     survey=survey,
                     subscription=subscription,
-                )
-                SurveyResultMember.objects.bulk_create(
-                    [
-                        SurveyResultMember(result=result, member=member)
-                        for member in members
-                    ]
+                    members=subscription.current_members,
                 )
 
-            # include remaining active members without a subscription
+            # collect future subscriptions and all their members that aren't in an active subscription already
+            today = datetime.date.today()
+            for waiting_subscription in (
+                Subscription.objects.exclude(activation_date__lte=today)
+                .prefetch_related('members')
+                .iterator(chunk_size=100)
+            ):
+                SurveyResult.objects.create_with_members(
+                    survey=survey,
+                    subscription=waiting_subscription,
+                    members=waiting_subscription.current_members.exclude(covered_survey_results__survey=survey),
+                )
+
+            # collect remaining active members without a subscription
             for member in (
                 Member.objects.active()
                 .exclude(covered_survey_results__survey=survey)
                 .iterator()
             ):
-                result = SurveyResult.objects.create(survey=survey)
-                SurveyResultMember.objects.create(result=result, member=member)
+                SurveyResult.objects.create_with_members(
+                    survey=survey,
+                    members=[member],
+                )
 
         return redirect('juntagrico-pulse:review', survey_id=survey.pk)
 

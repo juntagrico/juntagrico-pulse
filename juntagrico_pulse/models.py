@@ -20,6 +20,21 @@ class Survey(models.Model):
         return f'Umfrage {self.year}'
 
 
+class SurveyResultManager(models.Manager):
+    def create_with_members(self, survey, members, **kwargs):
+        if not members:
+            return None
+
+        result = self.model.objects.create(
+            survey=survey,
+            **kwargs
+        )
+        SurveyResultMember.objects.bulk_create(
+            [SurveyResultMember(result=result, member=member) for member in members]
+        )
+        return result
+
+
 class SurveyResult(models.Model):
     survey = models.ForeignKey(
         Survey,
@@ -53,6 +68,8 @@ class SurveyResult(models.Model):
     participation_level = models.PositiveSmallIntegerField(null=True, blank=True)
     consumption_level = models.PositiveSmallIntegerField(null=True, blank=True)
     comments = models.TextField(blank=True)
+
+    objects = SurveyResultManager()
 
     class Meta:
         constraints = [
