@@ -22,15 +22,15 @@
         <div class="col-12">
             <div class="card shadow-sm">
                 <div class="card-body p-4">
-                    <p>
+                    <div class="mb-3">
                         {{ survey.introduction|safe }}
-                    </p>
+                    </div>
 
                     {% if result.subscription_id %}
                         <p>
                             Die Fragen unten beziehen sich
                             <strong>auf dich und alle erwachsenen Personen (ab 18 Jahren), mit denen du das Gemüse teilst</strong>,
-                            sowie auf alle Personen, die mit dir/euch zu einem Einsatz mitkommen.
+                            sowie auf alle erwachsenen Personen, die mit dir/euch zu einem Einsatz mitkommen.
                         </p>
                     {% else %}
                         <p>
@@ -49,7 +49,6 @@
 
                     <form method="post" novalidate>
                         {% csrf_token %}
-                        <input type="hidden" name="next" value="{{ next_url }}">
 
                         {% if form.non_field_errors %}
                             <div class="alert alert-danger" role="alert">

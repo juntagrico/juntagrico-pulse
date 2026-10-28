@@ -4,7 +4,7 @@ import html
 from django.contrib import admin
 from django.contrib.auth.models import Permission, AnonymousUser
 from django.contrib.messages import get_messages
-from django.core.exceptions import PermissionDenied
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.http import HttpResponse, Http404
 from django.template import Context, Template
 from django.template.loader import render_to_string
@@ -384,15 +384,14 @@ class JuntagricoPulseTest(JuntagricoTestCase):
         self.assertIn('participation_level', form.errors)
         self.assertIn('people_eating_product', form.errors)
 
-        # POST valid with safe next URL
+        # POST valid with safe next URL (the form posts back to the URL including ?next=)
         response_valid = self.assertPost(
-            fill_url,
+            f'{fill_url}?next=/my/profile',
             data={
                 'participation_level': 2,
                 'people_eating_product': 3,
                 'subscription_percent': 70,
                 'comments': 'All good',
-                'next': '/my/profile',
             },
             code=302,
         )
@@ -409,13 +408,12 @@ class JuntagricoPulseTest(JuntagricoTestCase):
 
         # POST valid without next url -> redirects to 'home'
         response_no_next = self.assertPost(
-            fill_url,
+            f'{fill_url}?next=https://evil.com/phishing',  # Unsafe next URL
             data={
                 'participation_level': 2,
                 'people_eating_product': 3,
                 'subscription_percent': 70,
                 'comments': 'All good',
-                'next': 'https://evil.com/phishing',  # Unsafe next URL
             },
             code=302,
         )
@@ -518,15 +516,26 @@ class JuntagricoPulseTest(JuntagricoTestCase):
             self.assertEqual(response.context['season_started'], started, year)
             self.assertEqual(response.context['season_ended'], ended, year)
             self.assertIn(text, page_text(response))
+            self.assertEqual(
+                'planen es' in response.context['form'].fields['participation_level'].label, not ended, year
+            )
             survey.delete()
 
-    def test_fill_survey_keeps_next_in_form(self):
+    def test_fill_survey_requires_participation_level(self):
         survey = Survey.objects.create(year=2026, status=Survey.Status.PUBLISHED)
-        SurveyResult.objects.create_with_members(survey, [self.member])
+        result = SurveyResult.objects.create_with_members(survey, [self.member])
 
         fill_url = reverse('juntagrico-pulse:fill', kwargs={'survey_id': survey.pk})
-        response = self.assertGet(f'{fill_url}?next=/my/profile')
-        self.assertContains(response, '<input type="hidden" name="next" value="/my/profile">', html=True)
+        response = self.assertPost(fill_url, data={}, code=200)
+        self.assertIn('participation_level', response.context['form'].errors)
+        result.refresh_from_db()
+        self.assertFalse(result.is_complete)
+
+    def test_participation_level_max_on_model(self):
+        survey = Survey.objects.create(year=2026, status=Survey.Status.PUBLISHED)
+        result = SurveyResult(survey=survey, participation_level=1000)
+        with self.assertRaises(ValidationError):
+            result.full_clean()
 
     def test_survey_results_distribution_ignores_unsubmitted(self):
         survey = Survey.objects.create(year=2026, status=Survey.Status.PUBLISHED)
@@ -537,6 +546,28 @@ class JuntagricoPulseTest(JuntagricoTestCase):
         distribution = response.context['distribution']
         self.assertEqual([row['participation_level'] for row in distribution], [0, 1, 2])
         self.assertEqual(distribution[2]['count'], 1)
+
+    def test_survey_results_distribution_groups_large_levels(self):
+        survey = Survey.objects.create(year=2026, status=Survey.Status.PUBLISHED)
+        for level in (2, 12, 999):
+            SurveyResult.objects.create(survey=survey, participation_level=level, submitted_at=timezone.now())
+
+        response = self.assertGet(reverse('juntagrico-pulse:results', kwargs={'survey_id': survey.pk}))
+        distribution = response.context['distribution']
+        self.assertEqual([row['participation_level'] for row in distribution], [*range(10), '10+'])
+        self.assertEqual(distribution[-1]['count'], 2)
+
+    def test_individual_results_show_zero_answers(self):
+        survey = Survey.objects.create(year=2026, status=Survey.Status.PUBLISHED)
+        result = SurveyResult.objects.create_with_members(survey, [self.member], subscription=self.sub)
+        result.submitted_at = timezone.now()
+        result.participation_level = 0
+        result.consumption_level = 0
+        result.save()
+
+        response = self.assertGet(reverse('juntagrico-pulse:results-individual', kwargs={'survey_id': survey.pk}))
+        self.assertContains(response, '<td>0</td>', html=True)
+        self.assertContains(response, '<td>0,0</td>', html=True)
 
     def test_survey_results_empty(self):
         survey = Survey.objects.create(year=2026, status=Survey.Status.CLOSED)

@@ -26,14 +26,6 @@ class SurveyForm(forms.ModelForm):
 
 
 class SurveyResponseForm(forms.ModelForm):
-    participation_level = forms.IntegerField(
-        min_value=0,
-        max_value=999,
-        required=False,
-        label='Wie viele erwachsene Personen inklusive dir haben diese Saison schon '
-              'an einem Einsatz teilgenommen oder planen es diese Saison noch?',
-        widget=forms.NumberInput(attrs={'class': 'pulse-number-input'}),
-    )
     # TODO: store these in DB to make it easier to reconstruct
     people_eating_product = forms.IntegerField(
         min_value=0,
@@ -62,8 +54,21 @@ class SurveyResponseForm(forms.ModelForm):
         model = SurveyResult
         fields = ['participation_level', 'comments']
         labels = {
+            'participation_level': 'Wie viele erwachsene Personen inklusive dir haben diese Saison schon '
+                                   'an einem Einsatz teilgenommen oder planen es diese Saison noch?',
             'comments': 'Kommentar',
         }
+        widgets = {
+            'participation_level': forms.NumberInput(attrs={'class': 'pulse-number-input'}),
+        }
+
+    def __init__(self, *args, season_ended=False, **kwargs):
+        super().__init__(*args, **kwargs)
+        participation_level = self.fields['participation_level']
+        participation_level.required = True
+        if season_ended:
+            participation_level.label = ('Wie viele erwachsene Personen inklusive dir haben in dieser Saison '
+                                         'an einem Einsatz teilgenommen?')
 
     def clean(self):
         cleaned_data = super().clean()

@@ -69,7 +69,9 @@ class SurveyResult(models.Model):
     submitted_at = models.DateTimeField(null=True, blank=True)
 
     # Fixed question fields; empty until submitted.
-    participation_level = models.PositiveSmallIntegerField(null=True, blank=True)
+    participation_level = models.PositiveSmallIntegerField(
+        null=True, blank=True, validators=[MaxValueValidator(999)]
+    )
     consumption_level = models.FloatField(null=True, blank=True)
     comments = models.TextField(blank=True)
 

@@ -17,9 +17,8 @@
     font-size: 50%;
 }
 
-/* juntagrico.css sets th to normal weight; its .total-footer only bolds th */
-.pulse-status-table thead th,
-.pulse-status-table .total-footer td {
+/* juntagrico.css sets th to normal weight */
+.pulse-status-table thead th {
     font-weight: bold;
 }
 

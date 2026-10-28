@@ -18,6 +18,8 @@ from juntagrico.util.temporal import get_business_date_range
 from .models import Survey, SurveyResult, SurveyResultMember
 from .forms import SurveyForm, SurveyResponseForm
 
+DISTRIBUTION_CAP = 10
+
 
 @permission_required('juntagrico_pulse.view_survey')
 def survey_overview(request):
@@ -210,7 +212,7 @@ def draft_survey(request, survey_id):
 @require_http_methods(['GET', 'POST'])
 def fill_survey(request, survey_id):
     member = request.user.member
-    next_url = request.POST.get('next') or request.GET.get('next', '')
+    next_url = request.GET.get('next', '')
 
     result = get_object_or_404(
         SurveyResult.objects.select_related('survey'),
@@ -218,6 +220,10 @@ def fill_survey(request, survey_id):
         survey__status=Survey.Status.PUBLISHED,
         member_links__member=member,
     )
+
+    business_year_start, business_year_end = get_business_date_range(result.survey.year)
+    today = datetime.date.today()
+    season_ended = business_year_end < today
 
     if request.method == 'POST':
         with transaction.atomic():
@@ -228,7 +234,7 @@ def fill_survey(request, survey_id):
                 member_links__member=member,
             )
 
-            form = SurveyResponseForm(request.POST, instance=result)
+            form = SurveyResponseForm(request.POST, instance=result, season_ended=season_ended)
             if form.is_valid():
                 result = form.save(commit=False)
                 result.submitted_at = timezone.now()
@@ -244,10 +250,7 @@ def fill_survey(request, survey_id):
 
                 return redirect('home')
     else:
-        form = SurveyResponseForm(instance=result)
-
-    business_year_start, business_year_end = get_business_date_range(result.survey.year)
-    today = datetime.date.today()
+        form = SurveyResponseForm(instance=result, season_ended=season_ended)
 
     return render(
         request,
@@ -258,9 +261,8 @@ def fill_survey(request, survey_id):
             'form': form,
             'business_year_start': business_year_start,
             'business_year_end': business_year_end,
-            'next_url': next_url,
             'season_started': business_year_start <= today,
-            'season_ended': business_year_end < today,
+            'season_ended': season_ended,
             'already_submitted': result.submitted_at is not None,
         },
     )
@@ -328,17 +330,19 @@ def survey_results(request, survey_id):
         .annotate(count=Count('id'))
     }
 
-    distribution = (
-        [
+    # one bar per level, with large levels grouped into a single last bar
+    distribution = []
+    if counts:
+        distribution = [
             {
                 'participation_level': value,
                 'count': counts.get(value, 0),
             }
-            for value in range(max(counts) + 1)
+            for value in range(min(max(counts), DISTRIBUTION_CAP - 1) + 1)
         ]
-        if counts
-        else []
-    )
+        over_cap = sum(count for value, count in counts.items() if value >= DISTRIBUTION_CAP)
+        if over_cap:
+            distribution.append({'participation_level': f'{DISTRIBUTION_CAP}+', 'count': over_cap})
 
     return render(
         request,
