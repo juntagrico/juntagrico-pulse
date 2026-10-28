@@ -228,7 +228,7 @@ def fill_survey(request, survey_id):
                 member_links__member=member,
             )
 
-            form = SurveyResponseForm(request.POST, instance=result, next_url=next_url)
+            form = SurveyResponseForm(request.POST, instance=result)
             if form.is_valid():
                 result = form.save(commit=False)
                 result.submitted_at = timezone.now()
@@ -244,7 +244,7 @@ def fill_survey(request, survey_id):
 
                 return redirect('home')
     else:
-        form = SurveyResponseForm(instance=result, next_url=next_url)
+        form = SurveyResponseForm(instance=result)
 
     business_year_start, business_year_end = get_business_date_range(result.survey.year)
     today = datetime.date.today()
@@ -258,6 +258,7 @@ def fill_survey(request, survey_id):
             'form': form,
             'business_year_start': business_year_start,
             'business_year_end': business_year_end,
+            'next_url': next_url,
             'season_started': business_year_start <= today,
             'season_ended': business_year_end < today,
             'already_submitted': result.submitted_at is not None,
@@ -276,8 +277,6 @@ def survey_results(request, survey_id):
     completed = results.filter(submitted_at__isnull=False)
 
     stats = results.aggregate(
-        completed=Count("pk", filter=Q(submitted_at__isnull=False)),
-        pending=Count("pk", filter=Q(submitted_at__isnull=True)),
         completed_subscriptions=Count(
             "pk",
             filter=Q(
@@ -308,6 +307,9 @@ def survey_results(request, survey_id):
         ),
     )
 
+    stats['completed'] = stats['completed_subscriptions'] + stats['completed_members']
+    stats['pending'] = stats['pending_subscriptions'] + stats['pending_members']
+
     participation_summary = completed.aggregate(
         total=Sum("participation_level"),
         average=Avg("participation_level"),
@@ -321,7 +323,7 @@ def survey_results(request, survey_id):
 
     counts = {
         row['participation_level']: row['count']
-        for row in results.exclude(participation_level=None)
+        for row in completed.exclude(participation_level=None)
         .values('participation_level')
         .annotate(count=Count('id'))
     }

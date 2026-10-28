@@ -1,5 +1,5 @@
 from crispy_forms.helper import FormHelper
-from crispy_forms.layout import Submit, Hidden
+from crispy_forms.layout import Submit
 from django import forms
 from djrichtextfield.widgets import RichTextWidget
 
@@ -26,9 +26,18 @@ class SurveyForm(forms.ModelForm):
 
 
 class SurveyResponseForm(forms.ModelForm):
+    participation_level = forms.IntegerField(
+        min_value=0,
+        max_value=999,
+        required=False,
+        label='Wie viele erwachsene Personen inklusive dir haben diese Saison schon '
+              'an einem Einsatz teilgenommen oder planen es diese Saison noch?',
+        widget=forms.NumberInput(attrs={'class': 'pulse-number-input'}),
+    )
     # TODO: store these in DB to make it easier to reconstruct
     people_eating_product = forms.IntegerField(
         min_value=0,
+        max_value=999,
         required=False,
         label='Wie viele erwachsene Personen ernähren sich regelmässig vom Gemüse, das ihr erhaltet?',
         widget=forms.NumberInput(attrs={'class': 'pulse-number-input'}),
@@ -37,7 +46,7 @@ class SurveyResponseForm(forms.ModelForm):
         min_value=5,
         max_value=100,
         required=False,
-        label='Wie viel von eurem Gemüsebedarf deckt ihr damit ab?',
+        label='Wie viel von eurem Gemüsebedarf deckt das Gemüse ab, das ihr erhaltet?',
         widget=forms.NumberInput(
             attrs={
                 'type': 'range',
@@ -53,24 +62,8 @@ class SurveyResponseForm(forms.ModelForm):
         model = SurveyResult
         fields = ['participation_level', 'comments']
         labels = {
-            'participation_level': 'Wie viele erwachsene Personen inklusive dir haben diese Saison schon '
-                                   'an einem Einsatz teilgenommen oder planen es diese Saison noch?',
             'comments': 'Kommentar',
         }
-        widgets = {
-            'participation_level': forms.NumberInput(attrs={'class': 'pulse-number-input'}),
-        }
-
-    def __init__(self, *args, next_url, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.helper = FormHelper()
-        self.helper.add_input(Hidden('next_url', next_url))
-        self.helper.add_input(
-            Submit(
-                'submit',
-                'Absenden',
-            )
-        )
 
     def clean(self):
         cleaned_data = super().clean()

@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load crispy_forms_tags %}
+{% load crispy_forms_tags static %}
 
 {% block page_title %}
     <h3>
@@ -9,10 +9,7 @@
 
 {% block styles %}
     {{ block.super }}
-    <style>
-        .pulse-legend { font-size: 1.375rem; }
-        .pulse-number-input { max-width: 6rem; }
-    </style>
+    <link href="{% static 'juntagrico_pulse/css/pulse.css' %}" rel="stylesheet"/>
 {% endblock %}
 
 {% block content %}
@@ -32,14 +29,13 @@
                     {% if result.subscription_id %}
                         <p>
                             Die Fragen unten beziehen sich
-                            <strong>alle auf erwachsene Personen (ab 18 Jahren) Personen in deinem {{ vocabulary.subscription }}</strong>,
-                            sowie alle Personen, die mit dir/euch zu einem Einsatz mitkommen, bzw. von diesem
-                            {{ vocabulary.subscription }} essen.
+                            <strong>auf dich und alle erwachsenen Personen (ab 18 Jahren), mit denen du das Gemüse teilst</strong>,
+                            sowie auf alle Personen, die mit dir/euch zu einem Einsatz mitkommen.
                         </p>
                     {% else %}
                         <p>
                             Die Fragen unten beziehen sich auf
-                            <strong>dich und alle erwachsene Personen (ab 18 Jahren), die du zu Einsätzen mitbringst</strong>.
+                            <strong>dich und alle erwachsenen Personen (ab 18 Jahren), die du zu Einsätzen mitbringst</strong>.
                         </p>
                     {% endif %}
 
@@ -53,6 +49,7 @@
 
                     <form method="post" novalidate>
                         {% csrf_token %}
+                        <input type="hidden" name="next" value="{{ next_url }}">
 
                         {% if form.non_field_errors %}
                             <div class="alert alert-danger" role="alert">
@@ -61,7 +58,7 @@
                         {% endif %}
 
                         <fieldset class="border rounded p-3 p-md-4 mt-4">
-                            <legend class="w-auto px-2 h5 font-weight-bold mb-2 pulse-legend">
+                            <legend class="pulse-legend">
                                 Mitarbeitende Personen
                             </legend>
                             {{ form.participation_level|as_crispy_field }}
@@ -69,7 +66,7 @@
 
                         {% if result.subscription_id %}
                             <fieldset class="border rounded p-3 p-md-4 mt-4">
-                                <legend class="w-auto px-2 h5 font-weight-bold mb-2 pulse-legend">
+                                <legend class="pulse-legend">
                                     Versorgungsgrad
                                 </legend>
                                 <div>
