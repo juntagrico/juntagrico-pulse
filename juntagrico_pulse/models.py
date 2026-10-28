@@ -70,7 +70,7 @@ class SurveyResult(models.Model):
 
     # Fixed question fields; empty until submitted.
     participation_level = models.PositiveSmallIntegerField(null=True, blank=True)
-    consumption_level = models.PositiveSmallIntegerField(null=True, blank=True)
+    consumption_level = models.FloatField(null=True, blank=True)
     comments = models.TextField(blank=True)
 
     objects = SurveyResultManager()

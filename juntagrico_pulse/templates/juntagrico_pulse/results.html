@@ -84,14 +84,44 @@
     </div>
 
     <h2 class="h4">Zusammenfassung</h2>
-    <p>
-        Gemeldete aktive Mitarbeitende:
-        <strong>{{ answer_summary.participation_level_sum|default:0 }}</strong>
-    </p>
-    <p>
-        Durchschnittliche Mitarbeitende pro {{ vocabulary.subscription }}/Einzelperson:
-        <strong>{{ answer_summary.participation_level_average|default:"—"|floatformat:1 }}</strong>
-    </p>
+    <div class="row">
+        <div class="col-lg-6">
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h2 class="h5 mt-0">Aktive Mitarbeit</h2>
+                    <p class="mb-1">
+                        Gemeldete aktive Mitarbeitende:
+                        <strong>{{ participation_summary.total|default:0 }}</strong>
+                    </p>
+                    <p class="mb-0">
+                        Durchschnittliche Mitarbeitende pro {{ vocabulary.subscription }}/Einzelperson:
+                        <strong>{{ participation_summary.average|default:"—"|floatformat:1 }}</strong>
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h2 class="h5 mt-0">Versorgungsgrad</h2>
+                    <p class="mb-1">
+                        Ernährte Personen (Äquivalent):
+                        <strong>{{ consumption_summary.total|floatformat:1 }}</strong>
+                    </p>
+                    <p class="mb-0">
+                        {# TODO: calculate weighted average with subscription size #}
+                        Durchschnittlich pro {{ vocabulary.subscription }}:
+                        {% if consumption_summary.average != None %}
+                            <strong>{{ consumption_summary.average|floatformat:1 }}</strong>
+                        {% else %}
+                            —
+                        {% endif %}
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <h2 class="h4 mt-4">Verteilung</h2>
     {% if distribution %}

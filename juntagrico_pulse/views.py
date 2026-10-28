@@ -304,9 +304,15 @@ def survey_results(request, survey_id):
         ),
     )
 
-    answer_summary = completed.aggregate(
-        participation_level_sum=Sum("participation_level"),
-        participation_level_average=Avg("participation_level"),
+    participation_summary = completed.aggregate(
+        total=Sum("participation_level"),
+        average=Avg("participation_level"),
+    )
+
+    completed_with_subscription = completed.filter(subscription__isnull=False)
+    consumption_summary = completed_with_subscription.aggregate(
+        total=Sum('consumption_level'),
+        average=Avg('consumption_level'),
     )
 
     counts = {
@@ -328,12 +334,17 @@ def survey_results(request, survey_id):
         else []
     )
 
-    return render(request, "juntagrico_pulse/results.html", {
-        "survey": survey,
-        "stats": stats,
-        "answer_summary": answer_summary,
-        "distribution": distribution,
-    })
+    return render(
+        request,
+        'juntagrico_pulse/results.html',
+        {
+            'survey': survey,
+            'stats': stats,
+            'participation_summary': participation_summary,
+            'consumption_summary': consumption_summary,
+            'distribution': distribution,
+        },
+    )
 
 
 @permission_required('juntagrico_pulse.view_survey')
