@@ -143,6 +143,7 @@ def add_survey_member(request, survey_id, member_id):
 
     return redirect('juntagrico-pulse:review', survey_id=survey.pk)
 
+
 @permission_required('juntagrico_pulse.change_survey')
 @require_POST
 def remove_survey_member(request, survey_id, result_id, member_id):
