@@ -21,8 +21,6 @@
                         {{ survey.introduction|safe }}
                     </p>
 
-                    {# TODO: show exact business year that this refers to #}
-
                     {% if result.subscription_id %}
                         <p>
                             Die Fragen unten beziehen sich
@@ -36,6 +34,12 @@
                             <strong>dich und alle erwachsene Personen (ab 18 Jahren), die du zu Einsätzen mitbringst</strong>.
                         </p>
                     {% endif %}
+
+                    <p>
+                        Bitte beantworte die Fragen in Bezug auf die Saison,
+                        welche <strong>am {{ business_year_start|date }}
+                        startet und am {{ business_year_end|date }} endet</strong>.
+                    </p>
 
                     <form method="post" novalidate>
                         {% csrf_token %}

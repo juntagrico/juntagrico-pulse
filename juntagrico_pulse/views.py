@@ -13,6 +13,7 @@ from django.views.decorators.http import require_http_methods, require_POST
 from juntagrico.config import Config
 
 from juntagrico.models import Member, Subscription
+from juntagrico.util.temporal import get_business_date_range
 
 from .models import Survey, SurveyResult, SurveyResultMember
 from .forms import SurveyForm, SurveyResponseForm
@@ -244,6 +245,8 @@ def fill_survey(request, survey_id):
     else:
         form = SurveyResponseForm(instance=result, next_url=next_url)
 
+    business_year_start, business_year_end = get_business_date_range(result.survey.year)
+
     return render(
         request,
         'juntagrico_pulse/fill.html',
@@ -251,6 +254,8 @@ def fill_survey(request, survey_id):
             'survey': result.survey,
             'result': result,
             'form': form,
+            'business_year_start': business_year_start,
+            'business_year_end': business_year_end,
             'already_submitted': result.submitted_at is not None,
         },
     )
