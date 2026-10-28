@@ -30,7 +30,8 @@
                             Entwurf bearbeiten
                         </button>
                     </form>
-                    <form method="post" action="{% url 'juntagrico-pulse:close' survey.id %}">
+                    <form method="post" action="{% url 'juntagrico-pulse:close' survey.id %}"
+                          onsubmit="return confirm('Möchtest du die Umfrage {{ survey.year }} wirklich schliessen? Danach können keine Antworten mehr eingereicht werden.')">
                         {% csrf_token %}
                         <button type="submit" class="btn btn-outline-danger">
                             Umfrage schliessen
