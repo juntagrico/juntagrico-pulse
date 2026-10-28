@@ -65,7 +65,7 @@ class SurveyResultAdmin(admin.ModelAdmin):
         'submitted_by',
     )
     inlines = (SurveyResultMemberInline,)
-    readonly_fields = ('submitted_at',)
+    readonly_fields = ('submitted_at', 'consumption_level')
     ordering = ('survey__year', 'id')
 
     fieldsets = (
@@ -92,6 +92,8 @@ class SurveyResultAdmin(admin.ModelAdmin):
             {
                 'fields': (
                     'participation_level',
+                    'people_eating_product',
+                    'subscription_percent',
                     'consumption_level',
                     'comments',
                 ),
@@ -118,6 +120,8 @@ class SurveyResultAdmin(admin.ModelAdmin):
                 submitted_at=None,
                 submitted_by=None,
                 participation_level=None,
+                people_eating_product=None,
+                subscription_percent=None,
                 consumption_level=None,
                 comments='',
             )

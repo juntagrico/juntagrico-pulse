@@ -74,6 +74,7 @@
                     <td>
                         {% if result.consumption_level != None %}
                             {{ result.consumption_level }}
+                            <span class="text-muted">({{ result.people_eating_product }} × {{ result.subscription_percent }}%)</span>
                         {% else %}
                             <span class="text-muted">-</span>
                         {% endif %}

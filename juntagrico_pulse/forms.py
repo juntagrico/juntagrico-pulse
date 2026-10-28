@@ -26,40 +26,24 @@ class SurveyForm(forms.ModelForm):
 
 
 class SurveyResponseForm(forms.ModelForm):
-    # TODO: store these in DB to make it easier to reconstruct
-    people_eating_product = forms.IntegerField(
-        min_value=0,
-        max_value=999,
-        required=False,
-        label='Wie viele erwachsene Personen ernähren sich regelmässig vom Gemüse, das ihr erhaltet?',
-        widget=forms.NumberInput(attrs={'class': 'pulse-number-input'}),
-    )
-    subscription_percent = forms.IntegerField(
-        min_value=5,
-        max_value=100,
-        required=False,
-        label='Wie viel von eurem Gemüsebedarf deckt das Gemüse ab, das ihr erhaltet?',
-        widget=forms.NumberInput(
-            attrs={
-                'type': 'range',
-                'class': 'custom-range',
-                'min': 5,
-                'max': 100,
-                'step': 5,
-            }
-        ),
-    )
-
     class Meta:
         model = SurveyResult
-        fields = ['participation_level', 'comments']
+        fields = ['participation_level', 'people_eating_product', 'subscription_percent', 'comments']
         labels = {
             'participation_level': 'Wie viele erwachsene Personen inklusive dir haben diese Saison schon '
                                    'an einem Einsatz teilgenommen oder planen es diese Saison noch?',
+            'people_eating_product': 'Wie viele erwachsene Personen ernähren sich regelmässig vom Gemüse, '
+                                     'das ihr erhaltet?',
+            'subscription_percent': 'Wie viel von eurem Gemüsebedarf deckt das Gemüse ab, das ihr erhaltet?',
             'comments': 'Kommentar',
         }
         widgets = {
             'participation_level': forms.NumberInput(attrs={'class': 'pulse-number-input'}),
+            'people_eating_product': forms.NumberInput(attrs={'class': 'pulse-number-input'}),
+            # bounds and step are validated on the model
+            'subscription_percent': forms.NumberInput(
+                attrs={'type': 'range', 'class': 'custom-range', 'min': 5, 'max': 100, 'step': 5}
+            ),
         }
 
     def __init__(self, *args, season_ended=False, **kwargs):
@@ -71,35 +55,10 @@ class SurveyResponseForm(forms.ModelForm):
                                          'an einem Einsatz teilgenommen?')
 
     def clean(self):
+        # the estimates are only asked for (and stored by SurveyResult.save()) with a subscription
         cleaned_data = super().clean()
-        has_subscription = self.instance.subscription_id is not None
-
-        people = cleaned_data.get('people_eating_product')
-        percent = cleaned_data.get('subscription_percent')
-
-        if has_subscription:
-            if people is None:
-                self.add_error('people_eating_product', 'Bitte gib eine Schätzung an.')
-            if percent is None:
-                self.add_error('subscription_percent', 'Bitte gib eine Schätzung an.')
-        else:
-            cleaned_data['people_eating_product'] = None
-            cleaned_data['subscription_percent'] = None
-
+        if self.instance.subscription_id is not None:
+            for field in ('people_eating_product', 'subscription_percent'):
+                if cleaned_data.get(field) is None and field not in self.errors:
+                    self.add_error(field, 'Bitte gib eine Schätzung an.')
         return cleaned_data
-
-    def save(self, commit=True):
-        result = super().save(commit=False)
-
-        if result.subscription_id is not None:
-            people = self.cleaned_data['people_eating_product']
-            percent = self.cleaned_data['subscription_percent']
-            result.consumption_level = people * percent / 100
-        else:
-            result.consumption_level = None
-
-        if commit:
-            result.save()
-            self.save_m2m()
-
-        return result
