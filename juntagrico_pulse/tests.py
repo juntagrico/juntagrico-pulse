@@ -370,18 +370,38 @@ class JuntagricoPulseTest(JuntagricoTestCase):
         self.assertContains(response, '<b>Intro text</b>')
         self.assertContains(response, 'Versorgungsgrad')
 
+        # the slider has no value until answered, so the page can tell it is untouched
+        self.assertNotIn('value=', response.context['form']['subscription_percent'].as_widget())
+
         # GET by another member who is not part of this survey -> 404
         self.assertGet(fill_url, member=self.member2, code=404)
 
         # POST invalid by self.member
         response_invalid = self.assertPost(
             fill_url,
-            data={'participation_level': 1},  # missing people_eating_product & percent
+            # missing people_eating_product, untouched slider submits an empty percent
+            data={'participation_level': 1, 'subscription_percent': ''},
             code=200,
         )
         self.assertFormError(
             response_invalid.context['form'],
             'people_eating_product',
+            'Bitte gib eine Schätzung an.',
+        )
+        self.assertFormError(
+            response_invalid.context['form'],
+            'subscription_percent',
+            'Bitte gib eine Schätzung an.',
+        )
+        self.assertNotIn('value=', response_invalid.context['form']['subscription_percent'].as_widget())
+
+        # a POST without the percent at all is rejected the same way
+        response_missing = self.assertPost(
+            fill_url, data={'participation_level': 1, 'people_eating_product': 3}, code=200
+        )
+        self.assertFormError(
+            response_missing.context['form'],
+            'subscription_percent',
             'Bitte gib eine Schätzung an.',
         )
 
@@ -422,6 +442,7 @@ class JuntagricoPulseTest(JuntagricoTestCase):
         form = response_already.context['form']
         self.assertEqual(form['people_eating_product'].value(), 3)
         self.assertEqual(form['subscription_percent'].value(), 70)
+        self.assertIn('value="70"', form['subscription_percent'].as_widget())
 
         # POST valid without next url -> redirects to 'home'
         response_no_next = self.assertPost(

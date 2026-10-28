@@ -76,7 +76,7 @@
                                         {{ form.subscription_percent|as_crispy_field }}
                                         <div class="d-flex justify-content-between small text-muted">
                                             <span>5% — fast nichts</span>
-                                            <span id="subscription-percent-value" aria-live="polite"></span>
+                                            <span id="subscription-percent-value"></span>
                                             <span>100% — alles</span>
                                         </div>
                                         <small class="form-text text-muted">
@@ -111,12 +111,38 @@
             (function () {
                 const slider = document.getElementById("id_subscription_percent");
                 const value = document.getElementById("subscription-percent-value");
+                const keys = ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End", "PageUp", "PageDown"];
+                // A range input always submits a value. Until the slider is used, submit an empty
+                // value instead, so that an untouched slider is not saved as an answer.
+                let touched = slider.hasAttribute("value");
 
                 function updateValue() {
-                    value.textContent = slider.value + "%";
+                    value.textContent = touched ? slider.value + "%" : "Bitte Regler bewegen";
+                    if (touched) {
+                        slider.removeAttribute("aria-valuetext");
+                    } else {
+                        slider.setAttribute("aria-valuetext", "keine Antwort");
+                    }
                 }
 
-                slider.addEventListener("input", updateValue);
+                function touch() {
+                    touched = true;
+                    updateValue();
+                }
+
+                slider.addEventListener("pointerdown", touch);
+                slider.addEventListener("input", touch);
+                slider.addEventListener("change", touch);
+                slider.addEventListener("keydown", event => {
+                    if (keys.includes(event.key)) {
+                        touch();
+                    }
+                });
+                slider.form.addEventListener("formdata", event => {
+                    if (!touched) {
+                        event.formData.set(slider.name, "");
+                    }
+                });
                 updateValue();
             })();
         </script>

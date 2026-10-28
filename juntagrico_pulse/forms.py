@@ -40,9 +40,11 @@ class SurveyResponseForm(forms.ModelForm):
         widgets = {
             'participation_level': forms.NumberInput(attrs={'class': 'pulse-number-input'}),
             'people_eating_product': forms.NumberInput(attrs={'class': 'pulse-number-input'}),
-            # bounds and step are validated on the model
+            # bounds and step are validated on the model; autocomplete=off keeps the browser from
+            # restoring a value on reload, which fill.html would treat as untouched
             'subscription_percent': forms.NumberInput(
-                attrs={'type': 'range', 'class': 'custom-range', 'min': 5, 'max': 100, 'step': 5}
+                attrs={'type': 'range', 'class': 'custom-range', 'min': 5, 'max': 100, 'step': 5,
+                       'autocomplete': 'off'}
             ),
         }
 
