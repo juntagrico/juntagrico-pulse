@@ -22,10 +22,26 @@
         </a>
 
         {% if survey.status == "published" %}
-            <form method="post" action="{% url 'juntagrico-pulse:close' survey.id %}">
+            <div class="d-flex justify-content-end">
+                <form method="post" action="{% url 'juntagrico-pulse:draft' survey.id %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-outline-info mr-2">
+                        Entwurf bearbeiten
+                    </button>
+                </form>
+                <form method="post" action="{% url 'juntagrico-pulse:close' survey.id %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-outline-danger">
+                        Umfrage schliessen
+                    </button>
+                </form>
+            </div>
+        {% endif %}
+        {% if survey.status == "closed" %}
+            <form method="post" action="{% url 'juntagrico-pulse:publish' survey.id %}">
                 {% csrf_token %}
-                <button type="submit" class="btn btn-outline-danger">
-                    Umfrage schliessen
+                <button type="submit" class="btn btn-warning">
+                    Umfrage erneut öffnen
                 </button>
             </form>
         {% endif %}

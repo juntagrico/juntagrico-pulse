@@ -18,8 +18,7 @@
             <div class="card shadow-sm">
                 <div class="card-body p-4">
                     <p>
-                        {# TODO: create field to add text #}
-                        {{ survey.introduction }}
+                        {{ survey.introduction|safe }}
                     </p>
 
                     {# TODO: show exact business year that this refers to #}

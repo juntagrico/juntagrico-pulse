@@ -1,3 +1,4 @@
+from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
 from django.db.models import Q
 
@@ -8,13 +9,19 @@ class Survey(models.Model):
         PUBLISHED = 'published', 'Veröffentlicht'
         CLOSED = 'closed', 'Geschlossen'
 
-    year = models.PositiveSmallIntegerField(unique=True)
-    created_at = models.DateTimeField(auto_now_add=True)
+    year = models.PositiveSmallIntegerField(
+        'Umfragejahr',
+        unique=True,
+        validators=[MinValueValidator(2000), MaxValueValidator(9999)],
+    )
+    created_at = models.DateTimeField('Erstellt am', auto_now_add=True)
     status = models.CharField(
+        'Status',
         max_length=10,
         choices=Status.choices,
         default=Status.DRAFT,
     )
+    introduction = models.TextField('Einleitung', blank=True)
 
     def __str__(self):
         return f'Umfrage {self.year}'
@@ -25,10 +32,7 @@ class SurveyResultManager(models.Manager):
         if not members:
             return None
 
-        result = self.model.objects.create(
-            survey=survey,
-            **kwargs
-        )
+        result = self.model.objects.create(survey=survey, **kwargs)
         SurveyResultMember.objects.bulk_create(
             [SurveyResultMember(result=result, member=member) for member in members]
         )

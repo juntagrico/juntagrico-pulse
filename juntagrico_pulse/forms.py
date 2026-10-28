@@ -1,25 +1,27 @@
 from crispy_forms.helper import FormHelper
 from crispy_forms.layout import Submit, Hidden
 from django import forms
+from djrichtextfield.widgets import RichTextWidget
 from juntagrico.config import Config
 
-from juntagrico_pulse.models import SurveyResult
+from juntagrico_pulse.models import SurveyResult, Survey
 
 
-class StartSurveyForm(forms.Form):
-    year = forms.IntegerField(
-        min_value=2000,
-        max_value=9999,
-        label='Umfragejahr',
-    )
+class SurveyForm(forms.ModelForm):
+    class Meta:
+        model = Survey
+        fields = ['year', 'introduction']
+        widgets = {
+            'introduction': RichTextWidget(field_settings='juntagrico-pulse'),
+        }
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, submit_text=None, **kwargs):
         super().__init__(*args, **kwargs)
         self.helper = FormHelper()
         self.helper.add_input(
             Submit(
                 'submit',
-                'Entwurf erstellen',
+                submit_text or 'Speichern',
             )
         )
 

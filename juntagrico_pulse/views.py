@@ -15,7 +15,7 @@ from juntagrico.config import Config
 from juntagrico.models import Member, Subscription
 
 from .models import Survey, SurveyResult, SurveyResultMember
-from .forms import StartSurveyForm, SurveyResponseForm
+from .forms import SurveyForm, SurveyResponseForm
 
 
 # TODO: protect admin pages with a permission
@@ -38,16 +38,11 @@ def survey_overview(request):
 @login_required
 @require_http_methods(['GET', 'POST'])
 def start_survey(request):
-    form = StartSurveyForm(request.POST or None)
+    form = SurveyForm(request.POST or None, submit_text='Entwurf erstellen')
 
     if request.method == 'POST' and form.is_valid():
-        year = form.cleaned_data['year']
-
         with transaction.atomic():
-            survey = Survey.objects.create(
-                year=year,
-                status=Survey.Status.DRAFT,
-            )
+            survey = form.save()
 
             # collect all active subscriptions first
             for subscription in (
@@ -96,15 +91,19 @@ def get_draft(survey_id):
         pk=survey_id,
     )
     if survey.status != Survey.Status.DRAFT:
-        # TODO: Allow editing published subscription
         raise PermissionDenied('Nur Umfrage-Entwürfe können bearbeitet werden.')
     return survey
 
 
 @login_required
-@require_http_methods(['GET'])
+@require_http_methods(['GET', 'POST'])
 def review_survey(request, survey_id):
     survey = get_draft(survey_id)
+
+    form = SurveyForm(request.POST or None, instance=survey)
+    if request.method == 'POST' and form.is_valid():
+        survey = form.save()
+        messages.success(request, 'Änderungen gespeichert!')
 
     results = (
         SurveyResult.objects.filter(survey=survey)
@@ -118,7 +117,7 @@ def review_survey(request, survey_id):
     return render(
         request,
         'juntagrico_pulse/review.html',
-        {'survey': survey, 'results': results, 'excluded': excluded},
+        {'survey': survey, 'form': form, 'results': results, 'excluded': excluded},
     )
 
 
@@ -172,7 +171,10 @@ def remove_survey_member(request, survey_id, result_id, member_id):
 @require_POST
 def publish_survey(request, survey_id):
     with transaction.atomic():
-        survey = get_draft(survey_id)
+        survey = get_object_or_404(
+            Survey,
+            pk=survey_id,
+        )
 
         # Prevent publishing an empty survey.
         if not SurveyResultMember.objects.filter(result__survey=survey).exists():
@@ -185,7 +187,22 @@ def publish_survey(request, survey_id):
         survey.status = Survey.Status.PUBLISHED
         survey.save(update_fields=['status'])
 
-    return redirect('juntagrico-pulse:overview', survey_id=survey.pk)
+    return redirect('juntagrico-pulse:results', survey_id=survey.pk)
+
+
+@login_required
+@require_POST
+def draft_survey(request, survey_id):
+    with transaction.atomic():
+        survey = get_object_or_404(
+            Survey.objects.select_for_update(),
+            pk=survey_id,
+            status=Survey.Status.PUBLISHED,
+        )
+        survey.status = Survey.Status.DRAFT
+        survey.save(update_fields=["status"])
+
+    return redirect("juntagrico-pulse:review", survey_id=survey.pk)
 
 
 @login_required

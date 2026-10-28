@@ -19,6 +19,7 @@ urlpatterns = [
         name='remove_member',
     ),
     path('<int:survey_id>/publish/', views.publish_survey, name='publish'),
+    path('<int:survey_id>/draft/', views.draft_survey, name='draft'),
     path('<int:survey_id>/fill/', views.fill_survey, name='fill'),
     path('<int:survey_id>/results/', views.survey_results, name='results'),
     path('<int:survey_id>/results/individual/', views.survey_individual_results, name='results-individual'),
