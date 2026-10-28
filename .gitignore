@@ -113,7 +113,3 @@ ENV/
 
 # uv
 uv.lock
-
-# local dev
-CLAUDE.md
-juntagrico_pulse/migrations/0001_initial.py
