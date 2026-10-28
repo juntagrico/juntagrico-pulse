@@ -21,29 +21,31 @@
             Zurück zur Übersicht
         </a>
 
-        {% if survey.status == "published" %}
-            <div class="d-flex justify-content-end">
-                <form method="post" action="{% url 'juntagrico-pulse:draft' survey.id %}">
+        {% if perms.juntagrico_pulse.change_survey %}
+            {% if survey.status == "published" %}
+                <div class="d-flex justify-content-end">
+                    <form method="post" action="{% url 'juntagrico-pulse:draft' survey.id %}">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-outline-info mr-2">
+                            Entwurf bearbeiten
+                        </button>
+                    </form>
+                    <form method="post" action="{% url 'juntagrico-pulse:close' survey.id %}">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-outline-danger">
+                            Umfrage schliessen
+                        </button>
+                    </form>
+                </div>
+            {% endif %}
+            {% if survey.status == "closed" %}
+                <form method="post" action="{% url 'juntagrico-pulse:publish' survey.id %}">
                     {% csrf_token %}
-                    <button type="submit" class="btn btn-outline-info mr-2">
-                        Entwurf bearbeiten
+                    <button type="submit" class="btn btn-warning">
+                        Umfrage erneut öffnen
                     </button>
                 </form>
-                <form method="post" action="{% url 'juntagrico-pulse:close' survey.id %}">
-                    {% csrf_token %}
-                    <button type="submit" class="btn btn-outline-danger">
-                        Umfrage schliessen
-                    </button>
-                </form>
-            </div>
-        {% endif %}
-        {% if survey.status == "closed" %}
-            <form method="post" action="{% url 'juntagrico-pulse:publish' survey.id %}">
-                {% csrf_token %}
-                <button type="submit" class="btn btn-warning">
-                    Umfrage erneut öffnen
-                </button>
-            </form>
+            {% endif %}
         {% endif %}
     </div>
 

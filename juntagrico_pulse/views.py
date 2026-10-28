@@ -1,7 +1,7 @@
 import datetime
 
 from django.contrib import messages
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth.decorators import login_required, permission_required
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
 from django.db.models import Avg, Count, Sum, Q
@@ -18,8 +18,7 @@ from .models import Survey, SurveyResult, SurveyResultMember
 from .forms import SurveyForm, SurveyResponseForm
 
 
-# TODO: protect admin pages with a permission
-@login_required
+@permission_required('juntagrico_pulse.view_survey')
 def survey_overview(request):
     surveys = Survey.objects.annotate(
         selected_member_count=Count(
@@ -35,7 +34,7 @@ def survey_overview(request):
     )
 
 
-@login_required
+@permission_required('juntagrico_pulse.change_survey')
 @require_http_methods(['GET', 'POST'])
 def start_survey(request):
     form = SurveyForm(request.POST or None, submit_text='Entwurf erstellen')
@@ -95,7 +94,7 @@ def get_draft(survey_id):
     return survey
 
 
-@login_required
+@permission_required('juntagrico_pulse.change_survey')
 @require_http_methods(['GET', 'POST'])
 def review_survey(request, survey_id):
     survey = get_draft(survey_id)
@@ -121,7 +120,7 @@ def review_survey(request, survey_id):
     )
 
 
-@login_required
+@permission_required('juntagrico_pulse.change_survey')
 @require_POST
 def add_survey_member(request, survey_id, member_id):
     survey = get_draft(survey_id)
@@ -143,7 +142,7 @@ def add_survey_member(request, survey_id, member_id):
 
     return redirect('juntagrico-pulse:review', survey_id=survey.pk)
 
-@login_required
+@permission_required('juntagrico_pulse.change_survey')
 @require_POST
 def remove_survey_member(request, survey_id, result_id, member_id):
     survey = get_draft(survey_id)
@@ -167,7 +166,7 @@ def remove_survey_member(request, survey_id, result_id, member_id):
     return redirect('juntagrico-pulse:review', survey_id=survey.pk)
 
 
-@login_required
+@permission_required('juntagrico_pulse.change_survey')
 @require_POST
 def publish_survey(request, survey_id):
     with transaction.atomic():
@@ -190,7 +189,7 @@ def publish_survey(request, survey_id):
     return redirect('juntagrico-pulse:results', survey_id=survey.pk)
 
 
-@login_required
+@permission_required('juntagrico_pulse.change_survey')
 @require_POST
 def draft_survey(request, survey_id):
     with transaction.atomic():
@@ -257,7 +256,7 @@ def fill_survey(request, survey_id):
     )
 
 
-@login_required
+@permission_required('juntagrico_pulse.view_survey')
 def survey_results(request, survey_id):
     survey = get_object_or_404(
         Survey,
@@ -327,7 +326,7 @@ def survey_results(request, survey_id):
     })
 
 
-@login_required
+@permission_required('juntagrico_pulse.view_survey')
 def survey_individual_results(request, survey_id):
     survey = get_object_or_404(
         Survey,
@@ -342,7 +341,7 @@ def survey_individual_results(request, survey_id):
     })
 
 
-@login_required
+@permission_required('juntagrico_pulse.change_survey')
 @require_POST
 def close_survey(request, survey_id):
     with transaction.atomic():

@@ -39,7 +39,7 @@
                                class="btn btn-sm btn-outline-primary">
                                 Resultate
                             </a>
-                        {% elif survey.status == "draft" %}
+                        {% elif survey.status == "draft" and perms.juntagrico_pulse.change_survey %}
                             <a href="{% url 'juntagrico-pulse:review' survey.id %}"
                                class="btn btn-sm btn-outline-primary">
                                 Überprüfen
@@ -58,7 +58,9 @@
         </table>
     </div>
 
-    <a href="{% url 'juntagrico-pulse:start' %}" class="mt-3 btn btn-primary">
-        Neue Umfrage starten
-    </a>
+    {% if perms.juntagrico_pulse.change_survey %}
+        <a href="{% url 'juntagrico-pulse:start' %}" class="mt-3 btn btn-primary">
+            Neue Umfrage starten
+        </a>
+    {% endif %}
 {% endblock %}
