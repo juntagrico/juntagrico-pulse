@@ -316,13 +316,17 @@ def survey_results(request, survey_id):
         .annotate(count=Count('id'))
     }
 
-    distribution = [
-        {
-            'participation_level': value,
-            'count': counts.get(value, 0),
-        }
-        for value in range(max(counts) + 1)
-    ]
+    distribution = (
+        [
+            {
+                'participation_level': value,
+                'count': counts.get(value, 0),
+            }
+            for value in range(max(counts) + 1)
+        ]
+        if counts
+        else []
+    )
 
     return render(request, "juntagrico_pulse/results.html", {
         "survey": survey,
