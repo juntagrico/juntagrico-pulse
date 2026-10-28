@@ -1,7 +1,8 @@
+from django.contrib.auth.models import Permission
 from django.urls import reverse
 from juntagrico.models import Member
 from juntagrico.tests import JuntagricoTestCase
-from juntagrico_pulse.forms import StartSurveyForm
+from juntagrico_pulse.forms import SurveyForm
 from juntagrico_pulse.models import Survey
 
 
@@ -13,10 +14,14 @@ class JuntagricoPulseTest(JuntagricoTestCase):
             last_name='User',
             email='test@example.com',
         )
+        cls.member.user.user_permissions.add(
+            Permission.objects.get(codename='view_survey'),
+            Permission.objects.get(codename='change_survey'),
+        )
         cls.default_member = cls.member
 
     def test_start_survey_form(self):
-        form = StartSurveyForm()
+        form = SurveyForm()
         self.assertEqual(form.fields['year'].label, 'Umfragejahr')
 
     def test_overview_template(self):
