@@ -37,8 +37,8 @@
 
                     <p>
                         Bitte beantworte die Fragen in Bezug auf die Saison,
-                        welche <strong>am {{ business_year_start|date }}
-                        startet und am {{ business_year_end|date }} endet</strong>.
+                        welche am <strong>{{ business_year_start|date }}</strong> begann
+                        und am <strong>{{ business_year_end|date }}</strong> endet.
                     </p>
 
                     <form method="post" novalidate>
@@ -50,24 +50,18 @@
                             </div>
                         {% endif %}
 
-                        <div class="form-group">
+                        <fieldset class="border rounded p-3 p-md-4 mt-4">
+                            <legend class="w-auto px-2 h5 font-weight-bold mb-2" style="font-size: 1.375rem;">
+                                Mitarbeitende Personen
+                            </legend>
                             {{ form.participation_level|as_crispy_field }}
-                            <small class="form-text text-muted">
-                                Wie viele erwachsene Personen inklusive dir haben diese Saison schon
-                                an einem Einsatz teilgenommen oder planen es diese Saison noch?
-                            </small>
-                        </div>
+                        </fieldset>
 
                         {% if result.subscription_id %}
                             <fieldset class="border rounded p-3 p-md-4 mt-4">
-                                <legend class="w-auto px-2 h5 mb-2">
+                                <legend class="w-auto px-2 h5 font-weight-bold mb-2" style="font-size: 1.375rem;">
                                     Versorgungsgrad
                                 </legend>
-                                <p class="mb-3">
-                                    Überlege, wie viele erwachsene Personen regelmässig vom
-                                    <strong>Gemüse</strong> in diesem {{ vocabulary.subscription }} essen.
-                                </p>
-
                                 <div>
                                     {{ form.people_eating_product|as_crispy_field }}
                                 </div>

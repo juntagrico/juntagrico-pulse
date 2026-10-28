@@ -31,7 +31,8 @@ class SurveyResponseForm(forms.ModelForm):
     people_eating_product = forms.IntegerField(
         min_value=0,
         required=False,
-        label='Wie viele erwachsene Personen essen mit?',
+        label=f'Wie viele erwachsene Personen ernähren sich regelmässig vom Gemüse in diesem {Config.vocabulary("subscription")}?',
+        widget=forms.NumberInput(attrs={'style': 'max-width: 6rem;'}),
     )
     subscription_percent = forms.IntegerField(
         min_value=5,
@@ -53,8 +54,12 @@ class SurveyResponseForm(forms.ModelForm):
         model = SurveyResult
         fields = ['participation_level', 'comments']
         labels = {
-            'participation_level': 'Mitarbeitende Personen',
+            'participation_level': 'Wie viele erwachsene Personen inklusive dir haben diese Saison schon '
+                                   'an einem Einsatz teilgenommen oder planen es diese Saison noch?',
             'comments': 'Kommentar',
+        }
+        widgets = {
+            'participation_level': forms.NumberInput(attrs={'style': 'max-width: 6rem;'}),
         }
 
     def __init__(self, *args, next_url, **kwargs):
