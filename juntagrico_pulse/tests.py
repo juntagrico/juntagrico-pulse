@@ -475,6 +475,32 @@ class JuntagricoPulseTest(JuntagricoTestCase):
         self.assertContains(response_ind, 'Individuelle Antworten')
         self.assertContains(response_ind, 'Comment 1')
 
+    def test_survey_results_totals(self):
+        survey = Survey.objects.create(year=2026, status=Survey.Status.PUBLISHED)
+        SurveyResult.objects.create(survey=survey, subscription=self.sub, submitted_at=timezone.now())
+        SurveyResult.objects.create(survey=survey, subscription=self.sub2)
+        SurveyResult.objects.create(survey=survey, submitted_at=timezone.now())
+        SurveyResult.objects.create(survey=survey)
+        SurveyResult.objects.create(survey=survey)
+
+        response = self.assertGet(reverse('juntagrico-pulse:results', kwargs={'survey_id': survey.pk}))
+        stats = response.context['stats']
+        self.assertEqual(stats['completed'], 2)
+        self.assertEqual(stats['pending'], 3)
+        self.assertEqual(stats['completed'], stats['completed_subscriptions'] + stats['completed_members'])
+        self.assertEqual(stats['pending'], stats['pending_subscriptions'] + stats['pending_members'])
+
+    def test_fill_survey_season_tense(self):
+        for year, started, ended in ((2000, 'begann', 'endete'), (2999, 'beginnt', 'endet')):
+            survey = Survey.objects.create(year=year, status=Survey.Status.PUBLISHED)
+            SurveyResult.objects.create_with_members(survey, [self.member])
+
+            response = self.assertGet(reverse('juntagrico-pulse:fill', kwargs={'survey_id': survey.pk}))
+            text = ' '.join(response.content.decode().split())
+            self.assertIn(f'</strong> {started} und am', text)
+            self.assertIn(f'</strong> {ended}.', text)
+            survey.delete()
+
     def test_survey_results_empty(self):
         survey = Survey.objects.create(year=2026, status=Survey.Status.CLOSED)
         url_results = reverse(
@@ -482,6 +508,8 @@ class JuntagricoPulseTest(JuntagricoTestCase):
         )
         response = self.assertGet(url_results)
         self.assertContains(response, 'Noch keine Ergebnisse.')
+        text = ' '.join(response.content.decode().split())
+        self.assertIn('/Einzelperson: — </p>', text)
 
         url_individual = reverse(
             'juntagrico-pulse:results-individual', kwargs={'survey_id': survey.pk}

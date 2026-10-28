@@ -2,7 +2,6 @@ from crispy_forms.helper import FormHelper
 from crispy_forms.layout import Submit, Hidden
 from django import forms
 from djrichtextfield.widgets import RichTextWidget
-from juntagrico.config import Config
 
 from juntagrico_pulse.models import SurveyResult, Survey
 
@@ -31,14 +30,14 @@ class SurveyResponseForm(forms.ModelForm):
     people_eating_product = forms.IntegerField(
         min_value=0,
         required=False,
-        label=f'Wie viele erwachsene Personen ernähren sich regelmässig vom Gemüse in diesem {Config.vocabulary("subscription")}?',
-        widget=forms.NumberInput(attrs={'style': 'max-width: 6rem;'}),
+        label='Wie viele erwachsene Personen ernähren sich regelmässig vom Gemüse, das ihr erhaltet?',
+        widget=forms.NumberInput(attrs={'class': 'pulse-number-input'}),
     )
     subscription_percent = forms.IntegerField(
         min_value=5,
         max_value=100,
         required=False,
-        label=f'Wie viel von eurem Gemüsebedarf deckt das {Config.vocabulary("subscription")} ab?',
+        label='Wie viel von eurem Gemüsebedarf deckt ihr damit ab?',
         widget=forms.NumberInput(
             attrs={
                 'type': 'range',
@@ -59,7 +58,7 @@ class SurveyResponseForm(forms.ModelForm):
             'comments': 'Kommentar',
         }
         widgets = {
-            'participation_level': forms.NumberInput(attrs={'style': 'max-width: 6rem;'}),
+            'participation_level': forms.NumberInput(attrs={'class': 'pulse-number-input'}),
         }
 
     def __init__(self, *args, next_url, **kwargs):

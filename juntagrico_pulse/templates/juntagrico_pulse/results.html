@@ -4,15 +4,22 @@
     <h3>
         Ergebnisse {{ survey.year }}
         {% if survey.status == 'published' %}
-            <span class="badge badge-warning align-middle" style="font-size: 50%;">
+            <span class="badge badge-warning align-middle pulse-status-badge">
                 Umfrage läuft noch
             </span>
         {% elif survey.status == 'closed' %}
-            <span class="badge badge-success align-middle" style="font-size: 50%;">
+            <span class="badge badge-success align-middle pulse-status-badge">
                 Umfrage abgeschlossen
             </span>
     {% endif %}
     </h3>
+{% endblock %}
+
+{% block styles %}
+    {{ block.super }}
+    <style>
+        .pulse-status-badge { font-size: 50%; }
+    </style>
 {% endblock %}
 
 {% block content %}
@@ -31,7 +38,7 @@
                         </button>
                     </form>
                     <form method="post" action="{% url 'juntagrico-pulse:close' survey.id %}"
-                          onsubmit="return confirm('Möchtest du die Umfrage {{ survey.year }} wirklich schliessen? Danach können keine Antworten mehr eingereicht werden.')">
+                          onsubmit="return confirm('Möchtest du die Umfrage {{ survey.year }} wirklich schliessen? Bis sie wieder geöffnet wird, können keine Antworten eingereicht werden.')">
                         {% csrf_token %}
                         <button type="submit" class="btn btn-outline-danger">
                             Umfrage schliessen
@@ -96,8 +103,12 @@
                         <strong>{{ participation_summary.total|default:0 }}</strong>
                     </p>
                     <p class="mb-0">
-                        Durchschnitt pro {{ vocabulary.subscription }}/Person:
-                        <strong>{{ participation_summary.average|default:"—"|floatformat:1 }}</strong>
+                        Durchschnitt pro {{ vocabulary.subscription }}/Einzelperson:
+                        {% if participation_summary.average != None %}
+                            <strong>{{ participation_summary.average|floatformat:1 }}</strong>
+                        {% else %}
+                            —
+                        {% endif %}
                     </p>
                 </div>
             </div>
@@ -109,7 +120,7 @@
                     <h2 class="h5 mt-0">Versorgungsgrad</h2>
                     <p class="mb-1">
                         Ernährte Personen (Äquivalent):
-                        <strong>{{ consumption_summary.total|floatformat:1 }}</strong>
+                        <strong>{{ consumption_summary.total|default:0|floatformat:1 }}</strong>
                     </p>
                     <p class="mb-0">
                         {# TODO: calculate weighted average with subscription size #}

@@ -7,6 +7,14 @@
     </h3>
 {% endblock %}
 
+{% block styles %}
+    {{ block.super }}
+    <style>
+        .pulse-legend { font-size: 1.375rem; }
+        .pulse-number-input { max-width: 6rem; }
+    </style>
+{% endblock %}
+
 {% block content %}
     {% if already_submitted %}
         <div class="alert alert-info" role="status">
@@ -37,8 +45,10 @@
 
                     <p>
                         Bitte beantworte die Fragen in Bezug auf die Saison,
-                        welche am <strong>{{ business_year_start|date }}</strong> begann
-                        und am <strong>{{ business_year_end|date }}</strong> endet.
+                        welche am <strong>{{ business_year_start|date }}</strong>
+                        {% if season_started %}begann{% else %}beginnt{% endif %}
+                        und am <strong>{{ business_year_end|date }}</strong>
+                        {% if season_ended %}endete{% else %}endet{% endif %}.
                     </p>
 
                     <form method="post" novalidate>
@@ -51,7 +61,7 @@
                         {% endif %}
 
                         <fieldset class="border rounded p-3 p-md-4 mt-4">
-                            <legend class="w-auto px-2 h5 font-weight-bold mb-2" style="font-size: 1.375rem;">
+                            <legend class="w-auto px-2 h5 font-weight-bold mb-2 pulse-legend">
                                 Mitarbeitende Personen
                             </legend>
                             {{ form.participation_level|as_crispy_field }}
@@ -59,7 +69,7 @@
 
                         {% if result.subscription_id %}
                             <fieldset class="border rounded p-3 p-md-4 mt-4">
-                                <legend class="w-auto px-2 h5 font-weight-bold mb-2" style="font-size: 1.375rem;">
+                                <legend class="w-auto px-2 h5 font-weight-bold mb-2 pulse-legend">
                                     Versorgungsgrad
                                 </legend>
                                 <div>
