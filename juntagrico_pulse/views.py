@@ -273,7 +273,8 @@ def survey_results(request, survey_id):
     completed = results.filter(submitted_at__isnull=False)
 
     stats = results.aggregate(
-        total=Count("pk"),
+        completed=Count("pk", filter=Q(submitted_at__isnull=False)),
+        pending=Count("pk", filter=Q(submitted_at__isnull=True)),
         completed_subscriptions=Count(
             "pk",
             filter=Q(

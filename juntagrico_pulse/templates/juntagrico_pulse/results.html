@@ -4,11 +4,11 @@
     <h3>
         Ergebnisse {{ survey.year }}
         {% if survey.status == 'published' %}
-            <span class="badge badge-warning">
+            <span class="badge badge-warning align-middle" style="font-size: 50%;">
                 Umfrage läuft noch
             </span>
         {% elif survey.status == 'closed' %}
-            <span class="badge badge-success">
+            <span class="badge badge-success align-middle" style="font-size: 50%;">
                 Umfrage abgeschlossen
             </span>
     {% endif %}
@@ -54,9 +54,9 @@
         <table class="table table-bordered">
             <thead class="thead-light">
             <tr>
-                <th>Einheit</th>
-                <th>Eingereicht</th>
-                <th>Offen</th>
+                <th class="font-weight-bold">Einheit</th>
+                <th class="font-weight-bold">Eingereicht</th>
+                <th class="font-weight-bold">Offen</th>
             </tr>
             </thead>
             <tbody>
@@ -70,9 +70,10 @@
                 <td>{{ stats.completed_members }}</td>
                 <td>{{ stats.pending_members }}</td>
             </tr>
-            <tr>
-                <th>Total</th>
-                <td colspan="2">{{ stats.total }}</td>
+            <tr class="font-weight-bold">
+                <th class="font-weight-bold">Total</th>
+                <td>{{ stats.completed }}</td>
+                <td>{{ stats.pending }}</td>
             </tr>
             </tbody>
         </table>
@@ -94,7 +95,7 @@
                         <strong>{{ participation_summary.total|default:0 }}</strong>
                     </p>
                     <p class="mb-0">
-                        Durchschnittliche Mitarbeitende pro {{ vocabulary.subscription }}/Einzelperson:
+                        Durchschnitt pro {{ vocabulary.subscription }}/Person:
                         <strong>{{ participation_summary.average|default:"—"|floatformat:1 }}</strong>
                     </p>
                 </div>
