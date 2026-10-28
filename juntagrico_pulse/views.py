@@ -247,6 +247,7 @@ def fill_survey(request, survey_id):
         form = SurveyResponseForm(instance=result, next_url=next_url)
 
     business_year_start, business_year_end = get_business_date_range(result.survey.year)
+    today = datetime.date.today()
 
     return render(
         request,
@@ -257,6 +258,8 @@ def fill_survey(request, survey_id):
             'form': form,
             'business_year_start': business_year_start,
             'business_year_end': business_year_end,
+            'season_started': business_year_start <= today,
+            'season_ended': business_year_end < today,
             'already_submitted': result.submitted_at is not None,
         },
     )
@@ -273,7 +276,8 @@ def survey_results(request, survey_id):
     completed = results.filter(submitted_at__isnull=False)
 
     stats = results.aggregate(
-        total=Count("pk"),
+        completed=Count("pk", filter=Q(submitted_at__isnull=False)),
+        pending=Count("pk", filter=Q(submitted_at__isnull=True)),
         completed_subscriptions=Count(
             "pk",
             filter=Q(
