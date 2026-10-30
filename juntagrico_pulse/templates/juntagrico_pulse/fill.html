@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% load crispy_forms_tags %}
+{% load crispy_forms_tags static %}
 
 {% block page_title %}
     <h3>
@@ -9,10 +9,7 @@
 
 {% block styles %}
     {{ block.super }}
-    <style>
-        .pulse-legend { font-size: 1.375rem; }
-        .pulse-number-input { max-width: 6rem; }
-    </style>
+    <link href="{% static 'juntagrico_pulse/css/pulse.css' %}" rel="stylesheet"/>
 {% endblock %}
 
 {% block content %}
@@ -25,21 +22,20 @@
         <div class="col-12">
             <div class="card shadow-sm">
                 <div class="card-body p-4">
-                    <p>
+                    <div class="mb-3">
                         {{ survey.introduction|safe }}
-                    </p>
+                    </div>
 
                     {% if result.subscription_id %}
                         <p>
                             Die Fragen unten beziehen sich
-                            <strong>alle auf erwachsene Personen (ab 18 Jahren) Personen in deinem {{ vocabulary.subscription }}</strong>,
-                            sowie alle Personen, die mit dir/euch zu einem Einsatz mitkommen, bzw. von diesem
-                            {{ vocabulary.subscription }} essen.
+                            <strong>auf dich und alle erwachsenen Personen (ab 18 Jahren), mit denen du das Gemüse teilst</strong>,
+                            sowie auf alle erwachsenen Personen, die mit dir/euch zu einem Einsatz mitkommen.
                         </p>
                     {% else %}
                         <p>
                             Die Fragen unten beziehen sich auf
-                            <strong>dich und alle erwachsene Personen (ab 18 Jahren), die du zu Einsätzen mitbringst</strong>.
+                            <strong>dich und alle erwachsenen Personen (ab 18 Jahren), die du zu Einsätzen mitbringst</strong>.
                         </p>
                     {% endif %}
 
@@ -61,7 +57,7 @@
                         {% endif %}
 
                         <fieldset class="border rounded p-3 p-md-4 mt-4">
-                            <legend class="w-auto px-2 h5 font-weight-bold mb-2 pulse-legend">
+                            <legend class="pulse-legend">
                                 Mitarbeitende Personen
                             </legend>
                             {{ form.participation_level|as_crispy_field }}
@@ -69,7 +65,7 @@
 
                         {% if result.subscription_id %}
                             <fieldset class="border rounded p-3 p-md-4 mt-4">
-                                <legend class="w-auto px-2 h5 font-weight-bold mb-2 pulse-legend">
+                                <legend class="pulse-legend">
                                     Versorgungsgrad
                                 </legend>
                                 <div>
@@ -80,7 +76,7 @@
                                         {{ form.subscription_percent|as_crispy_field }}
                                         <div class="d-flex justify-content-between small text-muted">
                                             <span>5% — fast nichts</span>
-                                            <span id="subscription-percent-value" aria-live="polite"></span>
+                                            <span id="subscription-percent-value"></span>
                                             <span>100% — alles</span>
                                         </div>
                                         <small class="form-text text-muted">
@@ -115,12 +111,38 @@
             (function () {
                 const slider = document.getElementById("id_subscription_percent");
                 const value = document.getElementById("subscription-percent-value");
+                const keys = ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End", "PageUp", "PageDown"];
+                // A range input always submits a value. Until the slider is used, submit an empty
+                // value instead, so that an untouched slider is not saved as an answer.
+                let touched = slider.hasAttribute("value");
 
                 function updateValue() {
-                    value.textContent = slider.value + "%";
+                    value.textContent = touched ? slider.value + "%" : "Bitte Regler bewegen";
+                    if (touched) {
+                        slider.removeAttribute("aria-valuetext");
+                    } else {
+                        slider.setAttribute("aria-valuetext", "keine Antwort");
+                    }
                 }
 
-                slider.addEventListener("input", updateValue);
+                function touch() {
+                    touched = true;
+                    updateValue();
+                }
+
+                slider.addEventListener("pointerdown", touch);
+                slider.addEventListener("input", touch);
+                slider.addEventListener("change", touch);
+                slider.addEventListener("keydown", event => {
+                    if (keys.includes(event.key)) {
+                        touch();
+                    }
+                });
+                slider.form.addEventListener("formdata", event => {
+                    if (!touched) {
+                        event.formData.set(slider.name, "");
+                    }
+                });
                 updateValue();
             })();
         </script>

@@ -1,0 +1,27 @@
+/* fill.html */
+.pulse-legend {
+    width: auto;
+    padding: 0 .5rem;
+    margin-bottom: .5rem;
+    font-size: 1.375rem;
+    font-weight: bold;
+    line-height: 1.2;
+}
+
+.pulse-number-input {
+    max-width: 6rem;
+}
+
+/* results.html */
+.pulse-status-badge {
+    font-size: 50%;
+}
+
+/* juntagrico.css sets th to normal weight */
+.pulse-status-table thead th {
+    font-weight: bold;
+}
+
+.pulse-chart {
+    max-width: 700px;
+}

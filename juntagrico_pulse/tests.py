@@ -1,16 +1,19 @@
 import datetime
+import html
 
 from django.contrib import admin
 from django.contrib.auth.models import Permission, AnonymousUser
 from django.contrib.messages import get_messages
-from django.core.exceptions import PermissionDenied
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.http import HttpResponse, Http404
 from django.template import Context, Template
 from django.template.loader import render_to_string
 from django.test import RequestFactory
 from django.urls import reverse, resolve
 from django.utils import timezone
+from django.utils.html import strip_tags
 
+from juntagrico.config import Config
 from juntagrico.tests import JuntagricoTestCase
 from juntagrico_pulse.admin import SurveyAdmin, SurveyResultAdmin
 from juntagrico_pulse.forms import SurveyForm, SurveyResponseForm
@@ -18,6 +21,11 @@ from juntagrico_pulse.middleware import RequireSurveyCompletionMiddleware
 from juntagrico_pulse.models import Survey, SurveyResult, SurveyResultMember
 from juntagrico_pulse.templatetags.juntagrico_pulse.menu import show_pulse_menu
 from juntagrico_pulse.views import get_draft
+
+
+def page_text(response):
+    # visible text of a response, with tags removed and whitespace collapsed
+    return ' '.join(html.unescape(strip_tags(response.content.decode())).split())
 
 
 class JuntagricoPulseTest(JuntagricoTestCase):
@@ -70,7 +78,6 @@ class JuntagricoPulseTest(JuntagricoTestCase):
         form = SurveyResponseForm(
             data={'participation_level': 2},
             instance=result_sub,
-            next_url='/home',
         )
         self.assertFalse(form.is_valid())
         self.assertIn('people_eating_product', form.errors)
@@ -85,21 +92,30 @@ class JuntagricoPulseTest(JuntagricoTestCase):
         form_valid = SurveyResponseForm(
             data=valid_data,
             instance=result_sub,
-            next_url='/home',
         )
         self.assertTrue(form_valid.is_valid())
         saved_result = form_valid.save(commit=True)
+        saved_result.refresh_from_db()
+        self.assertEqual(saved_result.people_eating_product, 4)
+        self.assertEqual(saved_result.subscription_percent, 50)
         self.assertEqual(saved_result.consumption_level, 2)  # 4 * 50 / 100 = 2
+
+        # percent must be a step of the slider
+        form_step = SurveyResponseForm(data={**valid_data, 'subscription_percent': 73}, instance=result_sub)
+        self.assertIn('subscription_percent', form_step.errors)
 
         # Form without subscription
         result_no_sub = SurveyResult.objects.create(survey=survey)
         form_no_sub = SurveyResponseForm(
-            data={'participation_level': 1, 'comments': 'No sub'},
+            data={'participation_level': 1, 'people_eating_product': 4, 'subscription_percent': 50,
+                  'comments': 'No sub'},
             instance=result_no_sub,
-            next_url='',
         )
         self.assertTrue(form_no_sub.is_valid())
-        saved_no_sub = form_no_sub.save(commit=False)
+        saved_no_sub = form_no_sub.save()
+        saved_no_sub.refresh_from_db()
+        self.assertIsNone(saved_no_sub.people_eating_product)
+        self.assertIsNone(saved_no_sub.subscription_percent)
         self.assertIsNone(saved_no_sub.consumption_level)
 
     def test_overview_template(self):
@@ -354,13 +370,17 @@ class JuntagricoPulseTest(JuntagricoTestCase):
         self.assertContains(response, '<b>Intro text</b>')
         self.assertContains(response, 'Versorgungsgrad')
 
+        # the slider has no value until answered, so the page can tell it is untouched
+        self.assertNotIn('value=', response.context['form']['subscription_percent'].as_widget())
+
         # GET by another member who is not part of this survey -> 404
         self.assertGet(fill_url, member=self.member2, code=404)
 
         # POST invalid by self.member
         response_invalid = self.assertPost(
             fill_url,
-            data={'participation_level': 1},  # missing people_eating_product & percent
+            # missing people_eating_product, untouched slider submits an empty percent
+            data={'participation_level': 1, 'subscription_percent': ''},
             code=200,
         )
         self.assertFormError(
@@ -368,16 +388,41 @@ class JuntagricoPulseTest(JuntagricoTestCase):
             'people_eating_product',
             'Bitte gib eine Schätzung an.',
         )
+        self.assertFormError(
+            response_invalid.context['form'],
+            'subscription_percent',
+            'Bitte gib eine Schätzung an.',
+        )
+        self.assertNotIn('value=', response_invalid.context['form']['subscription_percent'].as_widget())
 
-        # POST valid with safe next URL
-        response_valid = self.assertPost(
+        # a POST without the percent at all is rejected the same way
+        response_missing = self.assertPost(
+            fill_url, data={'participation_level': 1, 'people_eating_product': 3}, code=200
+        )
+        self.assertFormError(
+            response_missing.context['form'],
+            'subscription_percent',
+            'Bitte gib eine Schätzung an.',
+        )
+
+        # POST with implausibly large numbers -> form errors
+        response_too_large = self.assertPost(
             fill_url,
+            data={'participation_level': 1000, 'people_eating_product': 1000, 'subscription_percent': 70},
+            code=200,
+        )
+        form = response_too_large.context['form']
+        self.assertIn('participation_level', form.errors)
+        self.assertIn('people_eating_product', form.errors)
+
+        # POST valid with safe next URL (the form posts back to the URL including ?next=)
+        response_valid = self.assertPost(
+            f'{fill_url}?next=/my/profile',
             data={
                 'participation_level': 2,
                 'people_eating_product': 3,
                 'subscription_percent': 70,
                 'comments': 'All good',
-                'next': '/my/profile',
             },
             code=302,
         )
@@ -385,22 +430,28 @@ class JuntagricoPulseTest(JuntagricoTestCase):
         result.refresh_from_db()
         self.assertTrue(result.is_complete)
         self.assertEqual(result.submitted_by, self.member)
+        self.assertEqual(result.people_eating_product, 3)
+        self.assertEqual(result.subscription_percent, 70)
+        self.assertEqual(result.consumption_level, 3 * 70 / 100)
 
-        # GET after already submitted shows info notice
+        # GET after already submitted shows info notice and the stored answers
         response_already = self.assertGet(fill_url)
         self.assertContains(
             response_already, 'Du hast bereits eine Antwort eingereicht.'
         )
+        form = response_already.context['form']
+        self.assertEqual(form['people_eating_product'].value(), 3)
+        self.assertEqual(form['subscription_percent'].value(), 70)
+        self.assertIn('value="70"', form['subscription_percent'].as_widget())
 
         # POST valid without next url -> redirects to 'home'
         response_no_next = self.assertPost(
-            fill_url,
+            f'{fill_url}?next=https://evil.com/phishing',  # Unsafe next URL
             data={
                 'participation_level': 2,
                 'people_eating_product': 3,
                 'subscription_percent': 70,
                 'comments': 'All good',
-                'next': 'https://evil.com/phishing',  # Unsafe next URL
             },
             code=302,
         )
@@ -416,12 +467,16 @@ class JuntagricoPulseTest(JuntagricoTestCase):
 
         response_post = self.assertPost(
             fill_url,
-            data={'participation_level': 5, 'comments': 'No subscription'},
+            # estimates are ignored without a subscription
+            data={'participation_level': 5, 'people_eating_product': 4, 'subscription_percent': 50,
+                  'comments': 'No subscription'},
             code=302,
         )
         self.assertRedirects(response_post, reverse('home'))
         result.refresh_from_db()
         self.assertEqual(result.participation_level, 5)
+        self.assertIsNone(result.people_eating_product)
+        self.assertIsNone(result.subscription_percent)
         self.assertIsNone(result.consumption_level)
 
     def test_survey_results_and_individual_results_view(self):
@@ -434,7 +489,8 @@ class JuntagricoPulseTest(JuntagricoTestCase):
         r1.submitted_at = timezone.now()
         r1.submitted_by = self.member
         r1.participation_level = 2
-        r1.consumption_level = 50
+        r1.people_eating_product = 50
+        r1.subscription_percent = 100
         r1.comments = 'Comment 1'
         r1.save()
 
@@ -487,19 +543,75 @@ class JuntagricoPulseTest(JuntagricoTestCase):
         stats = response.context['stats']
         self.assertEqual(stats['completed'], 2)
         self.assertEqual(stats['pending'], 3)
-        self.assertEqual(stats['completed'], stats['completed_subscriptions'] + stats['completed_members'])
-        self.assertEqual(stats['pending'], stats['pending_subscriptions'] + stats['pending_members'])
 
     def test_fill_survey_season_tense(self):
-        for year, started, ended in ((2000, 'begann', 'endete'), (2999, 'beginnt', 'endet')):
+        # default business year: 1 January to 31 December
+        current_year = datetime.date.today().year
+        for year, started, ended, text in (
+            (2000, True, True, 'begann und am 31. Dezember 2000 endete.'),
+            (current_year, True, False, f'begann und am 31. Dezember {current_year} endet.'),
+            (2999, False, False, 'beginnt und am 31. Dezember 2999 endet.'),
+        ):
             survey = Survey.objects.create(year=year, status=Survey.Status.PUBLISHED)
             SurveyResult.objects.create_with_members(survey, [self.member])
 
             response = self.assertGet(reverse('juntagrico-pulse:fill', kwargs={'survey_id': survey.pk}))
-            text = ' '.join(response.content.decode().split())
-            self.assertIn(f'</strong> {started} und am', text)
-            self.assertIn(f'</strong> {ended}.', text)
+            self.assertEqual(response.context['season_started'], started, year)
+            self.assertEqual(response.context['season_ended'], ended, year)
+            self.assertIn(text, page_text(response))
+            self.assertEqual(
+                'planen es' in response.context['form'].fields['participation_level'].label, not ended, year
+            )
             survey.delete()
+
+    def test_fill_survey_requires_participation_level(self):
+        survey = Survey.objects.create(year=2026, status=Survey.Status.PUBLISHED)
+        result = SurveyResult.objects.create_with_members(survey, [self.member])
+
+        fill_url = reverse('juntagrico-pulse:fill', kwargs={'survey_id': survey.pk})
+        response = self.assertPost(fill_url, data={}, code=200)
+        self.assertIn('participation_level', response.context['form'].errors)
+        result.refresh_from_db()
+        self.assertFalse(result.is_complete)
+
+    def test_participation_level_max_on_model(self):
+        survey = Survey.objects.create(year=2026, status=Survey.Status.PUBLISHED)
+        result = SurveyResult(survey=survey, participation_level=1000)
+        with self.assertRaises(ValidationError):
+            result.full_clean()
+
+    def test_survey_results_distribution_ignores_unsubmitted(self):
+        survey = Survey.objects.create(year=2026, status=Survey.Status.PUBLISHED)
+        SurveyResult.objects.create(survey=survey, participation_level=2, submitted_at=timezone.now())
+        SurveyResult.objects.create(survey=survey, participation_level=5)
+
+        response = self.assertGet(reverse('juntagrico-pulse:results', kwargs={'survey_id': survey.pk}))
+        distribution = response.context['distribution']
+        self.assertEqual([row['participation_level'] for row in distribution], [0, 1, 2])
+        self.assertEqual(distribution[2]['count'], 1)
+
+    def test_survey_results_distribution_groups_large_levels(self):
+        survey = Survey.objects.create(year=2026, status=Survey.Status.PUBLISHED)
+        for level in (2, 12, 999):
+            SurveyResult.objects.create(survey=survey, participation_level=level, submitted_at=timezone.now())
+
+        response = self.assertGet(reverse('juntagrico-pulse:results', kwargs={'survey_id': survey.pk}))
+        distribution = response.context['distribution']
+        self.assertEqual([row['participation_level'] for row in distribution], [*range(10), '10+'])
+        self.assertEqual(distribution[-1]['count'], 2)
+
+    def test_individual_results_show_zero_answers(self):
+        survey = Survey.objects.create(year=2026, status=Survey.Status.PUBLISHED)
+        result = SurveyResult.objects.create_with_members(survey, [self.member], subscription=self.sub)
+        result.submitted_at = timezone.now()
+        result.participation_level = 0
+        result.people_eating_product = 0
+        result.subscription_percent = 50
+        result.save()
+
+        response = self.assertGet(reverse('juntagrico-pulse:results-individual', kwargs={'survey_id': survey.pk}))
+        self.assertContains(response, '<td>0</td>', html=True)
+        self.assertContains(response, '<td>0,0 <span class="text-muted">(0 × 50%)</span></td>', html=True)
 
     def test_survey_results_empty(self):
         survey = Survey.objects.create(year=2026, status=Survey.Status.CLOSED)
@@ -508,8 +620,8 @@ class JuntagricoPulseTest(JuntagricoTestCase):
         )
         response = self.assertGet(url_results)
         self.assertContains(response, 'Noch keine Ergebnisse.')
-        text = ' '.join(response.content.decode().split())
-        self.assertIn('/Einzelperson: — </p>', text)
+        self.assertIsNone(response.context['participation_summary']['average'])
+        self.assertIn(f'Durchschnitt pro {Config.vocabulary("subscription")}/Einzelperson: —', page_text(response))
 
         url_individual = reverse(
             'juntagrico-pulse:results-individual', kwargs={'survey_id': survey.pk}
@@ -581,7 +693,7 @@ class JuntagricoPulseTest(JuntagricoTestCase):
         result = SurveyResult.objects.create(survey=survey)
 
         # fill.html with non_field_errors
-        form = SurveyResponseForm(data={}, instance=result, next_url='')
+        form = SurveyResponseForm(data={}, instance=result)
         form.add_error(None, 'Custom non-field error message')
 
         rendered_fill = render_to_string(
@@ -638,14 +750,16 @@ class JuntagricoPulseTest(JuntagricoTestCase):
         rf = RequestFactory()
         survey = Survey.objects.create(year=2026, status=Survey.Status.DRAFT)
         result1 = SurveyResult.objects.create_with_members(
-            survey, [self.member, self.member2]
+            survey, [self.member, self.member2], subscription=self.sub
         )
         result1.submitted_at = timezone.now()
         result1.submitted_by = self.member
         result1.participation_level = 3
-        result1.consumption_level = 80
+        result1.people_eating_product = 4
+        result1.subscription_percent = 20
         result1.comments = 'Test comment'
         result1.save()
+        self.assertEqual(result1.consumption_level, 0.8)
 
         SurveyResult.objects.create(survey=survey)
 
@@ -679,6 +793,8 @@ class JuntagricoPulseTest(JuntagricoTestCase):
         self.assertIsNone(result1.submitted_at)
         self.assertIsNone(result1.submitted_by)
         self.assertIsNone(result1.participation_level)
+        self.assertIsNone(result1.people_eating_product)
+        self.assertIsNone(result1.subscription_percent)
         self.assertIsNone(result1.consumption_level)
         self.assertEqual(result1.comments, '')
         messages = [m.message for m in get_messages(request)]

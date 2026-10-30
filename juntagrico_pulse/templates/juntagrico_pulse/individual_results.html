@@ -64,7 +64,7 @@
                         {% endfor %}
                     </td>
                     <td>
-                        {% if result.participation_level %}
+                        {% if result.participation_level != None %}
                             {{ result.participation_level }}
                         {% else %}
                             <span class="text-muted">-</span>
@@ -72,8 +72,9 @@
 
                     </td>
                     <td>
-                        {% if result.consumption_level %}
+                        {% if result.consumption_level != None %}
                             {{ result.consumption_level }}
+                            <span class="text-muted">({{ result.people_eating_product }} × {{ result.subscription_percent }}%)</span>
                         {% else %}
                             <span class="text-muted">-</span>
                         {% endif %}

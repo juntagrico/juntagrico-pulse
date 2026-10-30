@@ -1,4 +1,4 @@
-from django.core.validators import MinValueValidator, MaxValueValidator
+from django.core.validators import MinValueValidator, MaxValueValidator, StepValueValidator
 from django.db import models
 from django.db.models import Q
 
@@ -69,8 +69,21 @@ class SurveyResult(models.Model):
     submitted_at = models.DateTimeField(null=True, blank=True)
 
     # Fixed question fields; empty until submitted.
-    participation_level = models.PositiveSmallIntegerField(null=True, blank=True)
-    consumption_level = models.FloatField(null=True, blank=True)
+    participation_level = models.PositiveSmallIntegerField(
+        'Mitarbeitende Personen', null=True, blank=True, validators=[MaxValueValidator(999)]
+    )
+    # Only for results with a subscription.
+    people_eating_product = models.PositiveSmallIntegerField(
+        'Ernährte Personen', null=True, blank=True, validators=[MaxValueValidator(999)]
+    )
+    subscription_percent = models.PositiveSmallIntegerField(
+        'Abdeckung des Gemüsebedarfs (%)',
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(5), MaxValueValidator(100), StepValueValidator(5)],
+    )
+    # Derived in save(): people_eating_product * subscription_percent / 100
+    consumption_level = models.FloatField('Ernährte Personen (Äquivalent)', null=True, blank=True)
     comments = models.TextField(blank=True)
 
     objects = SurveyResultManager()
@@ -87,6 +100,16 @@ class SurveyResult(models.Model):
     @property
     def is_complete(self):
         return self.submitted_at is not None
+
+    def save(self, *args, **kwargs):
+        if self.subscription_id is None:
+            self.people_eating_product = None
+            self.subscription_percent = None
+        if self.people_eating_product is None or self.subscription_percent is None:
+            self.consumption_level = None
+        else:
+            self.consumption_level = self.people_eating_product * self.subscription_percent / 100
+        super().save(*args, **kwargs)
 
 
 class SurveyResultMember(models.Model):
