@@ -146,7 +146,7 @@
 
         {{ distribution|json_script:"participation-distribution" }}
 
-        <script src="{% static 'juntagrico_pulse/vendors/chart.js/chart.umd.min.js' %}"></script>
+        <script src="{% static 'juntagrico_pulse/vendor/chart.js/chart.umd.min.js' %}"></script>
         <script>
             const rows = JSON.parse(
                 document.getElementById("participation-distribution").textContent

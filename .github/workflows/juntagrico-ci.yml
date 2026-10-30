@@ -61,7 +61,7 @@ jobs:
     - name: ruff
       run: ruff check --preview juntagrico_pulse
     - name: make migrations
-      run: python -m django makemigrations --noinput
+      run: python -m django makemigrations --check --dry-run
     - name: run tests
       run: python -m manage test
       if: ${{ matrix.python-version  != '3.11' }}
