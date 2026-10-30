@@ -26,17 +26,13 @@
                         {{ survey.introduction|safe }}
                     </div>
 
-                    {% if result.subscription_id %}
-                        <p>
-                            Die Fragen unten beziehen sich
-                            <strong>auf dich und alle erwachsenen Personen (ab 18 Jahren), mit denen du das Gemüse teilst</strong>,
-                            sowie auf alle erwachsenen Personen, die mit dir/euch zu einem Einsatz mitkommen.
-                        </p>
-                    {% else %}
-                        <p>
-                            Die Fragen unten beziehen sich auf
-                            <strong>dich und alle erwachsenen Personen (ab 18 Jahren), die du zu Einsätzen mitbringst</strong>.
-                        </p>
+                    {% if plural %}
+                        <p class="mb-1">Du beantwortest die Fragen für folgende Personen:</p>
+                        <ul>
+                            {% for member in members %}
+                                <li>{{ member }}</li>
+                            {% endfor %}
+                        </ul>
                     {% endif %}
 
                     <p>
@@ -80,8 +76,14 @@
                                             <span>100% — alles</span>
                                         </div>
                                         <small class="form-text text-muted">
-                                            100% heisst ihr müsst nichts zukaufen.
-                                            50% heisst, ihr kauft etwa gleich viel dazu, wie ihr bekommt.
+                                            {% if plural %}
+                                                100% heisst, ihr müsst für zu Hause kein Gemüse zukaufen.
+                                                50% heisst, ihr kauft etwa gleich viel dazu, wie ihr bekommt.
+                                            {% else %}
+                                                100% heisst, du musst für zu Hause kein Gemüse zukaufen.
+                                                50% heisst, du kaufst etwa gleich viel dazu, wie du bekommst.
+                                            {% endif %}
+                                            Mahlzeiten auswärts (z. B. Kantine, Restaurant) zählen nicht.
                                         </small>
                                     </div>
                                 </div>
