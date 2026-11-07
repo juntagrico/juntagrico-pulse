@@ -224,6 +224,8 @@ def fill_survey(request, survey_id):
     business_year_start, business_year_end = get_business_date_range(result.survey.year)
     today = datetime.date.today()
     season_ended = business_year_end < today
+    members = list(result.members.order_by('first_name', 'last_name'))
+    plural = len(members) > 1
 
     if request.method == 'POST':
         with transaction.atomic():
@@ -234,7 +236,7 @@ def fill_survey(request, survey_id):
                 member_links__member=member,
             )
 
-            form = SurveyResponseForm(request.POST, instance=result, season_ended=season_ended)
+            form = SurveyResponseForm(request.POST, instance=result, season_ended=season_ended, plural=plural)
             if form.is_valid():
                 result = form.save(commit=False)
                 result.submitted_at = timezone.now()
@@ -250,7 +252,7 @@ def fill_survey(request, survey_id):
 
                 return redirect('home')
     else:
-        form = SurveyResponseForm(instance=result, season_ended=season_ended)
+        form = SurveyResponseForm(instance=result, season_ended=season_ended, plural=plural)
 
     return render(
         request,
@@ -263,6 +265,8 @@ def fill_survey(request, survey_id):
             'business_year_end': business_year_end,
             'season_started': business_year_start <= today,
             'season_ended': season_ended,
+            'members': members,
+            'plural': plural,
             'already_submitted': result.submitted_at is not None,
         },
     )

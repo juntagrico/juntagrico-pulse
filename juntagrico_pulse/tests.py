@@ -564,6 +564,30 @@ class JuntagricoPulseTest(JuntagricoTestCase):
             )
             survey.delete()
 
+    def test_fill_survey_singular_plural(self):
+        survey = Survey.objects.create(year=2026, status=Survey.Status.PUBLISHED)
+        fill_url = reverse('juntagrico-pulse:fill', kwargs={'survey_id': survey.pk})
+
+        result = SurveyResult.objects.create_with_members(survey, [self.member], subscription=self.sub)
+        response = self.assertGet(fill_url)
+        fields = response.context['form'].fields
+        self.assertFalse(response.context['plural'])
+        self.assertNotIn('folgende Personen', page_text(response))
+        self.assertIn('inklusive dir', fields['participation_level'].label)
+        self.assertIn('du erhältst', fields['people_eating_product'].label)
+        self.assertIn('Kinder eingeschlossen', page_text(response))
+        self.assertIn('heute (am Tag, an dem du die Umfrage ausfüllst) mindestens 18 Jahre', page_text(response))
+
+        SurveyResultMember.objects.create(result=result, member=self.member2)
+        response = self.assertGet(fill_url)
+        fields = response.context['form'].fields
+        self.assertTrue(response.context['plural'])
+        self.assertIn('folgende Personen', page_text(response))
+        self.assertIn(str(self.member), page_text(response))
+        self.assertIn(str(self.member2), page_text(response))
+        self.assertIn('inklusive euch', fields['participation_level'].label)
+        self.assertIn('ihr erhaltet', fields['subscription_percent'].label)
+
     def test_fill_survey_requires_participation_level(self):
         survey = Survey.objects.create(year=2026, status=Survey.Status.PUBLISHED)
         result = SurveyResult.objects.create_with_members(survey, [self.member])

@@ -30,11 +30,6 @@ class SurveyResponseForm(forms.ModelForm):
         model = SurveyResult
         fields = ['participation_level', 'people_eating_product', 'subscription_percent', 'comments']
         labels = {
-            'participation_level': 'Wie viele erwachsene Personen inklusive dir haben diese Saison schon '
-                                   'an einem Einsatz teilgenommen oder planen es diese Saison noch?',
-            'people_eating_product': 'Wie viele erwachsene Personen ernähren sich regelmässig vom Gemüse, '
-                                     'das ihr erhaltet?',
-            'subscription_percent': 'Wie viel von eurem Gemüsebedarf deckt das Gemüse ab, das ihr erhaltet?',
             'comments': 'Kommentar',
         }
         widgets = {
@@ -48,13 +43,36 @@ class SurveyResponseForm(forms.ModelForm):
             ),
         }
 
-    def __init__(self, *args, season_ended=False, **kwargs):
+    def __init__(self, *args, season_ended=False, plural=False, **kwargs):
         super().__init__(*args, **kwargs)
+        # address the members in plural if the result covers more than one
+        you = 'euch' if plural else 'dir'
+        you_receive = 'ihr erhaltet' if plural else 'du erhältst'
+
         participation_level = self.fields['participation_level']
         participation_level.required = True
-        if season_ended:
-            participation_level.label = ('Wie viele erwachsene Personen inklusive dir haben in dieser Saison '
-                                         'an einem Einsatz teilgenommen?')
+        participation_level.label = (
+            f'Wie viele Personen ab 18 Jahren, inklusive {you}, haben diese Saison an mindestens einem '
+            f'Einsatz teilgenommen{"" if season_ended else " oder planen es noch"}?'
+        )
+        participation_level.help_text = (
+            'Zähle alle Personen, die heute (am Tag, an dem du die Umfrage ausfüllst) mindestens 18 Jahre alt '
+            'sind und diese Saison mindestens einmal an einem Einsatz mitgemacht haben'
+            f'{"" if season_ended else " oder es noch vorhaben"} — unabhängig davon, ob sie vom Gemüse essen.'
+        )
+        people_eating_product = self.fields['people_eating_product']
+        people_eating_product.label = (
+            f'Wie viele Personen, Kinder eingeschlossen, essen regelmässig vom Gemüse, das {you_receive}?'
+        )
+        people_eating_product.help_text = (
+            f'Zähle alle Personen, Kinder eingeschlossen, die sich regelmässig vom Gemüse ernähren, das '
+            f'{you_receive} — unabhängig davon, ob sie an einem Einsatz mitgemacht haben. '
+            'Die nächste Frage bezieht sich auf diese Personen.'
+        )
+        self.fields['subscription_percent'].label = (
+            f'Für diese Personen: Wie viel des Gemüses, das zu Hause gegessen wird, deckt das Gemüse ab, '
+            f'das {you_receive}?'
+        )
 
     def clean(self):
         # the estimates are only asked for (and stored by SurveyResult.save()) with a subscription
