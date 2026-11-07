@@ -17,21 +17,18 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Set up Python
-        uses: actions/setup-python@v7
+      - name: Set up uv and Python
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
         with:
           python-version: '3.11'
 
-      - name: Set up uv
-        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
-
       - name: Install dependencies
         run: |
-          uv pip install --system -e . --group dev
-          uv pip install --system deptry
+          uv sync --group dev
+          uv pip install deptry
 
       - name: Run deptry
-        run: deptry . --github-output
+        run: uv run deptry . --github-output
 
   lint:
     name: Ruff lint
@@ -79,22 +76,21 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
 
-    - name: install dependencies
-      run: |
-        uv pip install --system -e . --group dev
+    - name: Install dependencies
+      run: uv sync --group dev
 
-    - name: make migrations
-      run: python -m django makemigrations --check --dry-run
+    - name: Make migrations
+      run: uv run python -m django makemigrations --check --dry-run
 
-    - name: run tests
-      run: python -m manage test
+    - name: Run tests
+      run: uv run python -m manage test
       if: ${{ matrix.python-version  != '3.11' }}
 
-    - name: run tests with coverage
-      run: coverage run -m manage test
+    - name: Run tests with coverage
+      run: uv run coverage run -m manage test
       if: ${{ matrix.python-version  == '3.11' }}
 
-    - run: coverage lcov -o coverage.lcov
+    - run: uv run coverage lcov -o coverage.lcov
       if: ${{ matrix.python-version  == '3.11' }}
 
     - uses: actions/upload-artifact@v7
