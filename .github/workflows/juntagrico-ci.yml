@@ -13,25 +13,22 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
 
-      - name: Set up Python
-        uses: actions/setup-python@v7
+      - name: Set up uv and Python
+        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           python-version: '3.11'
-
-      - name: Set up uv
-        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
-
+          
       - name: Install dependencies
         run: |
-          uv pip install --system -e . --group dev
-          uv pip install --system deptry
+          uv sync --group dev
+          uv pip install deptry
 
       - name: Run deptry
-        run: deptry . --github-output
+        run: uv run deptry . --github-output
 
   lint:
     name: Ruff lint
@@ -47,7 +44,7 @@ jobs:
         with:
           python-version: '3.11'
       - name: Ruff check
-        uses: astral-sh/ruff-action@4919ec5cf1f49eff0871dbcea0da843445b837e6 # v3
+        uses: astral-sh/ruff-action@278981a28ce3188b1e39527901f38254bf3aac89 # v4.1.0
         with:
           args: check --preview
 
@@ -70,7 +67,7 @@ jobs:
           - python-version: '3.14'
 
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
       with:
         persist-credentials: false
 
@@ -79,22 +76,21 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
 
-    - name: install dependencies
-      run: |
-        uv pip install --system -e . --group dev
+    - name: Install dependencies
+      run: uv sync --group dev
 
-    - name: make migrations
-      run: python -m django makemigrations --check --dry-run
+    - name: Make migrations
+      run: uv run python -m django makemigrations --check --dry-run
 
-    - name: run tests
-      run: python -m manage test
+    - name: Run tests
+      run: uv run python -m manage test
       if: ${{ matrix.python-version  != '3.11' }}
 
-    - name: run tests with coverage
-      run: coverage run -m manage test
+    - name: Run tests with coverage
+      run: uv run coverage run -m manage test
       if: ${{ matrix.python-version  == '3.11' }}
 
-    - run: coverage lcov -o coverage.lcov
+    - run: uv run coverage lcov -o coverage.lcov
       if: ${{ matrix.python-version  == '3.11' }}
 
     - uses: actions/upload-artifact@v7
@@ -110,10 +106,10 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@v8
         with:
           path: coverage
           merge-multiple: true

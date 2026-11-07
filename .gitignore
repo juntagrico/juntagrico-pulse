@@ -110,6 +110,3 @@ ENV/
 
 #idea
 .idea
-
-# uv
-uv.lock
