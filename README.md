@@ -35,11 +35,12 @@ INSTALLED_APPS = (
 
 And add this middleware after the `AuthenticationMiddleware`:
 ```python
-INSTALLED_APPS = (
+MIDDLEWARE = [
     ...
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'juntagrico_pulse.middleware.RequireSurveyCompletionMiddleware',
     ...
+]
 ```
 
 
