@@ -2,13 +2,52 @@ from django.contrib import admin, messages
 from django.db import transaction
 from django.db.models import Count, Q
 
-from .models import Survey, SurveyResult, SurveyResultMember
+from .forms import BaseSurveyProductFormSet, SurveyProductForm
+from .models import Survey, SurveyProduct, SurveyProductCoverage, SurveyResult, SurveyResultMember
 
 
 class SurveyResultMemberInline(admin.TabularInline):
     model = SurveyResultMember
     extra = 0
     autocomplete_fields = ('member',)
+
+
+class SurveyProductInline(admin.TabularInline):
+    model = SurveyProduct
+    # same validation as on the review page: products with answers keep their bundles and can't be deleted
+    form = SurveyProductForm
+    formset = BaseSurveyProductFormSet
+    extra = 0
+
+    # like on the review page, products can only be changed while the survey is a draft:
+    # deleting one would delete its answers and changing its bundles would change who is asked
+    @staticmethod
+    def is_draft(obj):
+        return obj is None or obj.status == Survey.Status.DRAFT
+
+    def has_add_permission(self, request, obj=None):
+        return self.is_draft(obj) and super().has_add_permission(request, obj)
+
+    def has_change_permission(self, request, obj=None):
+        return self.is_draft(obj) and super().has_change_permission(request, obj)
+
+    def has_delete_permission(self, request, obj=None):
+        return self.is_draft(obj) and super().has_delete_permission(request, obj)
+
+
+class SurveyProductCoverageInline(admin.TabularInline):
+    model = SurveyProductCoverage
+    extra = 0
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        # only offer the products of the result's survey
+        if db_field.name == 'product':
+            object_id = request.resolver_match.kwargs.get('object_id')
+            if object_id is None:
+                kwargs['queryset'] = SurveyProduct.objects.none()
+            else:
+                kwargs['queryset'] = SurveyProduct.objects.filter(survey__results__pk=object_id)
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 
 @admin.register(Survey)
@@ -18,6 +57,7 @@ class SurveyAdmin(admin.ModelAdmin):
     search_fields = ('year',)
     ordering = ('-year',)
     readonly_fields = ('created_at',)
+    inlines = (SurveyProductInline,)
 
     def get_queryset(self, request):
         return (
@@ -64,8 +104,8 @@ class SurveyResultAdmin(admin.ModelAdmin):
         'subscription',
         'submitted_by',
     )
-    inlines = (SurveyResultMemberInline,)
-    readonly_fields = ('submitted_at', 'consumption_level')
+    inlines = (SurveyResultMemberInline, SurveyProductCoverageInline)
+    readonly_fields = ('submitted_at',)
     ordering = ('survey__year', 'id')
 
     fieldsets = (
@@ -93,8 +133,7 @@ class SurveyResultAdmin(admin.ModelAdmin):
                 'fields': (
                     'participation_level',
                     'people_eating_product',
-                    'subscription_percent',
-                    'consumption_level',
+                    'children_eating_product',
                     'comments',
                 ),
             },
@@ -116,13 +155,13 @@ class SurveyResultAdmin(admin.ModelAdmin):
     @admin.action(description='Eingereichte Antwort zurücksetzen')
     def reset_survey_results(self, request, queryset):
         with transaction.atomic():
+            SurveyProductCoverage.objects.filter(result__in=queryset).delete()
             updated = queryset.update(
                 submitted_at=None,
                 submitted_by=None,
                 participation_level=None,
                 people_eating_product=None,
-                subscription_percent=None,
-                consumption_level=None,
+                children_eating_product=None,
                 comments='',
             )
 

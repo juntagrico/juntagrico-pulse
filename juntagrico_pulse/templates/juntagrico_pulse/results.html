@@ -120,19 +120,28 @@
             <div class="card mb-4">
                 <div class="card-body">
                     <h2 class="h5 mt-0">Versorgungsgrad</h2>
-                    <p class="mb-1">
-                        Ernährte Personen (Äquivalent):
-                        <strong>{{ consumption_summary.total|default:0|floatformat:1 }}</strong>
+                    <p>
+                        Gemeldete ernährte Personen:
+                        <strong>{{ people_summary.adults|default:0 }}</strong> über 12 Jahre und
+                        <strong>{{ people_summary.children|default:0 }}</strong> Kinder bis 12 Jahre.
                     </p>
-                    <p class="mb-0">
-                        {# TODO: calculate weighted average with subscription size #}
-                        Durchschnittlich pro {{ vocabulary.subscription }}:
-                        {% if consumption_summary.average != None %}
-                            <strong>{{ consumption_summary.average|floatformat:1 }}</strong>
-                        {% else %}
-                            —
-                        {% endif %}
-                    </p>
+                    {% for product in products %}
+                        <p class="{% if forloop.last %}mb-0{% else %}mb-2{% endif %}">
+                            <strong>{{ product.name }}</strong>:
+                            {% if product.average_percent != None %}
+                                Bei <strong>{{ product.people }} Personen</strong>
+                                (davon {{ product.children }} Kinder)
+                                deckt es durchschnittlich <strong>{{ product.average_percent|floatformat:0 }}%</strong>
+                                des Bedarfs zu Hause ab.
+                                Das entspricht <strong>{{ product.fed_equivalent|floatformat:1 }}</strong>
+                                ernährten Personen (Kinder zählen ×{{ child_weight }}).
+                            {% else %}
+                                <span class="text-muted">Noch keine Antworten.</span>
+                            {% endif %}
+                        </p>
+                    {% empty %}
+                        <p class="text-muted mb-0">In dieser Umfrage wurden keine Produkte abgefragt.</p>
+                    {% endfor %}
                 </div>
             </div>
         </div>

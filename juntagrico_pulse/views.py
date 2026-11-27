@@ -1,10 +1,12 @@
+import copy
 import datetime
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, permission_required
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
-from django.db.models import Avg, Count, Sum, Q
+from django.db.models import Avg, Count, F, FloatField, Q, Sum
+from django.db.models.functions import Coalesce
 from django.http.response import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
@@ -12,13 +14,21 @@ from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_http_methods, require_POST
 from juntagrico.config import Config
 
+from juntagrico.entity.subs import SubscriptionPart
 from juntagrico.models import Member, Subscription
+from juntagrico.util.models import q_isactive
 from juntagrico.util.temporal import get_business_date_range
 
-from .models import Survey, SurveyResult, SurveyResultMember
-from .forms import SurveyForm, SurveyResponseForm
+from .models import CHILD_WEIGHT, Survey, SurveyResult, SurveyResultMember
+from .forms import SurveyForm, SurveyProductFormSet, SurveyResponseForm
 
 DISTRIBUTION_CAP = 10
+
+
+def results_asking(results, products):
+    """Results whose subscription has an active part of a bundle of any of the products."""
+    parts = SubscriptionPart.objects.filter(q_isactive(), type__bundle__survey_products__in=products)
+    return results.filter(subscription__parts__in=parts).distinct()
 
 
 @permission_required('juntagrico_pulse.view_survey')
@@ -102,10 +112,18 @@ def get_draft(survey_id):
 def review_survey(request, survey_id):
     survey = get_draft(survey_id)
 
-    form = SurveyForm(request.POST or None, instance=survey)
-    if request.method == 'POST' and form.is_valid():
-        survey = form.save()
+    data = request.POST or None
+    # a copy, so that rejected input doesn't show up elsewhere on the page, e.g. in the heading
+    form = SurveyForm(data, instance=copy.copy(survey), form_tag=False)
+    product_formset = SurveyProductFormSet(data, instance=survey, prefix='products')
+    # validate both, so that the errors of both are shown at once
+    valid = [form.is_valid(), product_formset.is_valid()]
+    if request.method == 'POST' and all(valid):
+        with transaction.atomic():
+            survey = form.save()
+            product_formset.save()
         messages.success(request, 'Änderungen gespeichert!')
+        return redirect('juntagrico-pulse:review', survey_id=survey.pk)
 
     results = (
         SurveyResult.objects.filter(survey=survey)
@@ -116,10 +134,22 @@ def review_survey(request, survey_id):
 
     excluded = Member.objects.active().exclude(covered_survey_results__survey=survey)
 
+    # number of results each saved product is asked in, to check the configuration before publishing
+    for product_form in product_formset:
+        product = product_form.instance
+        if product.pk:
+            product_form.result_count = results_asking(results, [product]).count()
+
     return render(
         request,
         'juntagrico_pulse/review.html',
-        {'survey': survey, 'form': form, 'results': results, 'excluded': excluded},
+        {
+            'survey': survey,
+            'form': form,
+            'product_formset': product_formset,
+            'results': results,
+            'excluded': excluded,
+        },
     )
 
 
@@ -190,6 +220,13 @@ def publish_survey(request, survey_id):
         survey.status = Survey.Status.PUBLISHED
         survey.save(update_fields=['status'])
 
+        if not results_asking(survey.results.all(), survey.products.all()).exists():
+            messages.warning(
+                request,
+                'Es werden keine Fragen zum Versorgungsgrad gestellt, '
+                'weil kein Produkt zu einem aktiven Bestandteil passt.',
+            )
+
     return redirect('juntagrico-pulse:results', survey_id=survey.pk)
 
 
@@ -226,6 +263,8 @@ def fill_survey(request, survey_id):
     season_ended = business_year_end < today
     members = list(result.members.order_by('first_name', 'last_name'))
     plural = len(members) > 1
+    products = list(result.products())
+    form_kwargs = {'products': products, 'season_ended': season_ended, 'plural': plural}
 
     if request.method == 'POST':
         with transaction.atomic():
@@ -236,12 +275,11 @@ def fill_survey(request, survey_id):
                 member_links__member=member,
             )
 
-            form = SurveyResponseForm(request.POST, instance=result, season_ended=season_ended, plural=plural)
+            form = SurveyResponseForm(request.POST, instance=result, **form_kwargs)
             if form.is_valid():
-                result = form.save(commit=False)
-                result.submitted_at = timezone.now()
-                result.submitted_by = member
-                result.save()
+                form.instance.submitted_at = timezone.now()
+                form.instance.submitted_by = member
+                form.save()
 
                 if url_has_allowed_host_and_scheme(
                     next_url,
@@ -252,7 +290,7 @@ def fill_survey(request, survey_id):
 
                 return redirect('home')
     else:
-        form = SurveyResponseForm(instance=result, season_ended=season_ended, plural=plural)
+        form = SurveyResponseForm(instance=result, **form_kwargs)
 
     return render(
         request,
@@ -261,6 +299,7 @@ def fill_survey(request, survey_id):
             'survey': result.survey,
             'result': result,
             'form': form,
+            'products': products,
             'business_year_start': business_year_start,
             'business_year_end': business_year_end,
             'season_started': business_year_start <= today,
@@ -321,11 +360,34 @@ def survey_results(request, survey_id):
         average=Avg("participation_level"),
     )
 
-    completed_with_subscription = completed.filter(subscription__isnull=False)
-    consumption_summary = completed_with_subscription.aggregate(
-        total=Sum('consumption_level'),
-        average=Avg('consumption_level'),
+    people_summary = completed.aggregate(
+        adults=Sum('people_eating_product'),
+        children=Sum('children_eating_product'),
     )
+
+    # per product: people eating it and the coverage, weighted by people (children count CHILD_WEIGHT)
+    submitted = Q(coverages__result__submitted_at__isnull=False)
+    # an admin may have left a count empty
+    adults = Coalesce(F('coverages__result__people_eating_product'), 0)
+    children = Coalesce(F('coverages__result__children_eating_product'), 0)
+    equivalent = adults + children * CHILD_WEIGHT
+    products = list(
+        survey.products.annotate(
+            people=Sum(adults + children, filter=submitted, default=0),
+            children=Sum(children, filter=submitted, default=0),
+            equivalent_people=Sum(equivalent, filter=submitted, default=0, output_field=FloatField()),
+            fed_equivalent=Sum(
+                equivalent * F('coverages__percent') / 100.0,
+                filter=submitted,
+                default=0,
+                output_field=FloatField(),
+            ),
+        )
+    )
+    for product in products:
+        product.average_percent = (
+            product.fed_equivalent / product.equivalent_people * 100 if product.equivalent_people else None
+        )
 
     counts = {
         row['participation_level']: row['count']
@@ -355,7 +417,9 @@ def survey_results(request, survey_id):
             'survey': survey,
             'stats': stats,
             'participation_summary': participation_summary,
-            'consumption_summary': consumption_summary,
+            'people_summary': people_summary,
+            'products': products,
+            'child_weight': CHILD_WEIGHT,
             'distribution': distribution,
         },
     )
@@ -368,7 +432,11 @@ def survey_individual_results(request, survey_id):
         pk=survey_id,
     )
 
-    results = SurveyResult.objects.filter(survey=survey)
+    results = (
+        SurveyResult.objects.filter(survey=survey)
+        .select_related('subscription', 'submitted_by')
+        .prefetch_related('members', 'product_coverages__product')
+    )
 
     return render(request, "juntagrico_pulse/individual_results.html", {
         "survey": survey,

@@ -59,34 +59,34 @@
                             {{ form.participation_level|as_crispy_field }}
                         </fieldset>
 
-                        {% if result.subscription_id %}
+                        {% if products %}
                             <fieldset class="border rounded p-3 p-md-4 mt-4">
                                 <legend class="pulse-legend">
                                     Versorgungsgrad
                                 </legend>
-                                <div>
-                                    {{ form.people_eating_product|as_crispy_field }}
-                                </div>
-                                <div>
+                                {{ form.people_eating_product|as_crispy_field }}
+                                {{ form.children_eating_product|as_crispy_field }}
+                                <p class="font-weight-bold mb-3">{{ form.coverage_intro }}</p>
+                                {% for field in form.coverage_fields %}
                                     <div class="form-group">
-                                        {{ form.subscription_percent|as_crispy_field }}
+                                        {{ field|as_crispy_field }}
                                         <div class="d-flex justify-content-between small text-muted">
                                             <span>5% — fast nichts</span>
-                                            <span id="subscription-percent-value"></span>
+                                            <span class="pulse-coverage-value" id="{{ field.auto_id }}-value"></span>
                                             <span>100% — alles</span>
                                         </div>
-                                        <small class="form-text text-muted">
-                                            {% if plural %}
-                                                100% heisst, ihr müsst für zu Hause kein Gemüse zukaufen.
-                                                50% heisst, ihr kauft etwa gleich viel dazu, wie ihr bekommt.
-                                            {% else %}
-                                                100% heisst, du musst für zu Hause kein Gemüse zukaufen.
-                                                50% heisst, du kaufst etwa gleich viel dazu, wie du bekommst.
-                                            {% endif %}
-                                            Mahlzeiten auswärts (z. B. Kantine, Restaurant) zählen nicht.
-                                        </small>
                                     </div>
-                                </div>
+                                {% endfor %}
+                                <small class="form-text text-muted">
+                                    {% if plural %}
+                                        100% heisst, ihr müsst für zu Hause nichts davon zukaufen.
+                                        50% heisst, ihr kauft etwa gleich viel dazu, wie ihr bekommt.
+                                    {% else %}
+                                        100% heisst, du musst für zu Hause nichts davon zukaufen.
+                                        50% heisst, du kaufst etwa gleich viel dazu, wie du bekommst.
+                                    {% endif %}
+                                    Mahlzeiten auswärts (z. B. Kantine, Restaurant) zählen nicht.
+                                </small>
                             </fieldset>
                         {% endif %}
 
@@ -108,44 +108,46 @@
 
 {% block scripts %}
     {{ block.super }}
-    {% if result.subscription_id %}
+    {% if products %}
         <script>
             (function () {
-                const slider = document.getElementById("id_subscription_percent");
-                const value = document.getElementById("subscription-percent-value");
                 const keys = ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End", "PageUp", "PageDown"];
-                // A range input always submits a value. Until the slider is used, submit an empty
-                // value instead, so that an untouched slider is not saved as an answer.
-                let touched = slider.hasAttribute("value");
 
-                function updateValue() {
-                    value.textContent = touched ? slider.value + "%" : "Bitte Regler bewegen";
-                    if (touched) {
-                        slider.removeAttribute("aria-valuetext");
-                    } else {
-                        slider.setAttribute("aria-valuetext", "keine Antwort");
+                document.querySelectorAll(".pulse-coverage-slider").forEach(slider => {
+                    const value = document.getElementById(slider.id + "-value");
+                    // A range input always submits a value. Until the slider is used, submit an empty
+                    // value instead, so that an untouched slider is not saved as an answer.
+                    let touched = slider.hasAttribute("value");
+
+                    function updateValue() {
+                        value.textContent = touched ? slider.value + "%" : "Bitte Regler bewegen";
+                        if (touched) {
+                            slider.removeAttribute("aria-valuetext");
+                        } else {
+                            slider.setAttribute("aria-valuetext", "keine Antwort");
+                        }
                     }
-                }
 
-                function touch() {
-                    touched = true;
+                    function touch() {
+                        touched = true;
+                        updateValue();
+                    }
+
+                    slider.addEventListener("pointerdown", touch);
+                    slider.addEventListener("input", touch);
+                    slider.addEventListener("change", touch);
+                    slider.addEventListener("keydown", event => {
+                        if (keys.includes(event.key)) {
+                            touch();
+                        }
+                    });
+                    slider.form.addEventListener("formdata", event => {
+                        if (!touched) {
+                            event.formData.set(slider.name, "");
+                        }
+                    });
                     updateValue();
-                }
-
-                slider.addEventListener("pointerdown", touch);
-                slider.addEventListener("input", touch);
-                slider.addEventListener("change", touch);
-                slider.addEventListener("keydown", event => {
-                    if (keys.includes(event.key)) {
-                        touch();
-                    }
                 });
-                slider.form.addEventListener("formdata", event => {
-                    if (!touched) {
-                        event.formData.set(slider.name, "");
-                    }
-                });
-                updateValue();
             })();
         </script>
     {% endif %}
