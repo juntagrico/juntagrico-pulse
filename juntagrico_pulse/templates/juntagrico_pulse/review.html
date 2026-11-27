@@ -20,7 +20,48 @@
         </form>
     </div>
 
-    {% crispy form %}
+    <form method="post">
+        {% csrf_token %}
+        {% crispy form %}
+
+        <h3 class="mt-4">Produkte</h3>
+        <p>
+            Für jedes Produkt wird gefragt, wie viel des Bedarfs es abdeckt.
+            Die Frage erscheint nur für {{ vocabulary.subscription_pl }} mit einem aktiven Bestandteil
+            aus einem der gewählten Pakete.
+        </p>
+        {{ product_formset.management_form }}
+        {% if product_formset.non_form_errors %}
+            <div class="alert alert-danger" role="alert">{{ product_formset.non_form_errors }}</div>
+        {% endif %}
+        {% for product_form in product_formset %}
+            <div class="card mb-3">
+                <div class="card-body">
+                    {% for hidden in product_form.hidden_fields %}{{ hidden }}{% endfor %}
+                    {% if product_form.non_field_errors %}
+                        <div class="alert alert-danger" role="alert">{{ product_form.non_field_errors }}</div>
+                    {% endif %}
+                    <div class="form-row">
+                        <div class="col-md-8">{{ product_form.name|as_crispy_field }}</div>
+                        <div class="col-md-4">{{ product_form.sort_order|as_crispy_field }}</div>
+                    </div>
+                    {{ product_form.bundles|as_crispy_field }}
+                    <div class="d-flex justify-content-between align-items-center">
+                        {% if product_form.instance.pk %}
+                            <span class="text-muted">
+                                Wird bei {{ product_form.result_count }} Antwort{{ product_form.result_count|pluralize:"en" }} gefragt.
+                            </span>
+                            {{ product_form.DELETE|as_crispy_field }}
+                        {% else %}
+                            <span class="text-muted">Neues Produkt (leer lassen, um keines hinzuzufügen)</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        {% endfor %}
+
+        <button type="submit" class="btn btn-primary">Speichern</button>
+    </form>
 
     {% if error %}
         <div class="alert alert-danger" role="alert">{{ error }}</div>

@@ -72,9 +72,12 @@
 
                     </td>
                     <td>
-                        {% if result.consumption_level != None %}
-                            {{ result.consumption_level }}
-                            <span class="text-muted">({{ result.people_eating_product }} × {{ result.subscription_percent }}%)</span>
+                        {% if result.people_eating_product != None %}
+                            {{ result.people_eating_product }} + {{ result.children_eating_product|default:0 }} Kinder
+                            <br>
+                            {% for coverage in result.product_coverages.all %}
+                                {{ coverage.product.name }} {{ coverage.percent }}%{% if not forloop.last %} · {% endif %}
+                            {% endfor %}
                         {% else %}
                             <span class="text-muted">-</span>
                         {% endif %}
